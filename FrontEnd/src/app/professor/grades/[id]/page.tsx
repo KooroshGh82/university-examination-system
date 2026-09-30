@@ -1,0 +1,1 @@
+'use client';import {useParams} from 'next/navigation';import {useEffect} from 'react';import {useRouter} from 'next/navigation';export default function GradeDetail(){const {id}=useParams<{id:string}>(),router=useRouter();useEffect(()=>{router.replace(`/professor/submissions/${id}`)},[id,router]);return <p role="status">در حال انتقال به بررسی پاسخ…</p>}

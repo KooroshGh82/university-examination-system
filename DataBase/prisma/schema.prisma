@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STUDENT
+  PROFESSOR
+}
+
+enum ExamType {
+  MULTIPLE_CHOICE
+  DESCRIPTIVE
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED
+  ABSENT
+}
+
+enum GradeStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ObjectionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  CONFIRMED
+  CHANGED
+}
+
+enum FileKind {
+  EXAM_QUESTION
+  STUDENT_ANSWER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  universityId String   @unique @map("university_id") @db.VarChar(64)
+  email        String?  @unique @db.VarChar(320)
+  passwordHash String   @map("password_hash") @db.Text
+  fullName     String   @map("full_name") @db.VarChar(200)
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  student      Student?
+  professor    Professor?
+  auditEvents  AuditEvent[] @relation("AuditActor")
+  adminExams   Exam[] @relation("ExamAdmin")
+  @@map("users")
+}
+
+model Student {
+  userId      String @id @map("user_id") @db.Uuid
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+  attempts    ExamAttempt[]
+  objections  GradeObjection[]
+  @@map("students")
+}
+
+model Professor {
+  userId      String @id @map("user_id") @db.Uuid
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assignments ProfessorAssignment[]
+  exams       Exam[]
+  gradeEvents GradeRevision[]
+  decisions   ObjectionDecision[]
+  @@map("professors")
+}
+
+model Course {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @db.VarChar(32)
+  titleFa     String @map("title_fa") @db.VarChar(200)
+  termCode    String @map("term_code") @db.VarChar(32)
+  enrollments Enrollment[]
+  assignments ProfessorAssignment[]
+  exams       Exam[]
+  @@unique([code, termCode])
+  @@map("courses")
+}
+
+model Enrollment {
+  id        String @id @default(uuid()) @db.Uuid
+  courseId  String @map("course_id") @db.Uuid
+  studentId String @map("student_id") @db.Uuid
+  isActive  Boolean @default(true) @map("is_active")
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  student   Student @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  attempts  ExamAttempt[]
+  @@unique([courseId, studentId])
+  @@unique([id, courseId, studentId])
+  @@index([studentId, isActive])
+  @@map("enrollments")
+}
+
+model ProfessorAssignment {
+  id          String @id @default(uuid()) @db.Uuid
+  courseId    String @map("course_id") @db.Uuid
+  professorId String @map("professor_id") @db.Uuid
+  isActive    Boolean @default(true) @map("is_active")
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  professor   Professor @relation(fields: [professorId], references: [userId], onDelete: Restrict)
+  exams       Exam[]
+  @@unique([courseId, professorId])
+  @@unique([id, courseId, professorId])
+  @@index([professorId, isActive])
+  @@map("professor_assignments")
+}
+
+model Exam {
+  id                    String @id @default(uuid()) @db.Uuid
+  courseId              String @map("course_id") @db.Uuid
+  professorId           String @map("professor_id") @db.Uuid
+  assignmentId          String @map("assignment_id") @db.Uuid
+  createdByAdminId      String? @map("created_by_admin_id") @db.Uuid
+  titleFa               String @map("title_fa") @db.VarChar(200)
+  instructionsFa        String? @map("instructions_fa") @db.Text
+  type                  ExamType
+  status                ExamStatus @default(DRAFT)
+  startsAt              DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt                DateTime @map("ends_at") @db.Timestamptz(6)
+  durationMinutes       Int? @map("duration_minutes")
+  maxPoints             Decimal @map("max_points") @db.Decimal(8, 2)
+  publishedAt           DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  course                Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  professor             Professor @relation(fields: [professorId], references: [userId], onDelete: Restrict)
+  assignment            ProfessorAssignment @relation(fields: [assignmentId, courseId, professorId], references: [id, courseId, professorId], onDelete: Restrict)
+  createdByAdmin        User? @relation("ExamAdmin", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  questions             ExamQuestion[]
+  files                 StoredFile[] @relation("ExamFiles")
+  attempts              ExamAttempt[]
+  @@unique([id, courseId])
+  @@index([courseId, startsAt])
+  @@index([professorId, status])
+  @@map("exams")
+}
+
+model ExamQuestion {
+  id         String @id @default(uuid()) @db.Uuid
+  examId     String @map("exam_id") @db.Uuid
+  promptFa   String @map("prompt_fa") @db.Text
+  points     Decimal @db.Decimal(8, 2)
+  authorOrder Int @map("author_order")
+  exam       Exam @relation(fields: [examId], references: [id], onDelete: Restrict)
+  options    MultipleChoiceOption[]
+  placements AttemptQuestion[]
+  @@unique([examId, authorOrder])
+  @@unique([id, examId])
+  @@index([examId])
+  @@map("exam_questions")
+}
+
+model MultipleChoiceOption {
+  id         String @id @default(uuid()) @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  textFa     String @map("text_fa") @db.Text
+  position   Int
+  isCorrect  Boolean @default(false) @map("is_correct")
+  question   ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  answers    StudentAnswer[]
+  @@unique([questionId, position])
+  @@unique([id, questionId])
+  @@map("multiple_choice_options")
+}
+
+model ExamAttempt {
+  id             String @id @default(uuid()) @db.Uuid
+  examId         String @map("exam_id") @db.Uuid
+  courseId       String @map("course_id") @db.Uuid
+  studentId      String @map("student_id") @db.Uuid
+  enrollmentId   String @map("enrollment_id") @db.Uuid
+  status         AttemptStatus @default(IN_PROGRESS)
+  startedAt      DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  deadlineAt     DateTime @map("deadline_at") @db.Timestamptz(6)
+  submittedAt    DateTime? @map("submitted_at") @db.Timestamptz(6)
+  exam           Exam @relation(fields: [examId, courseId], references: [id, courseId], onDelete: Restrict)
+  enrollment     Enrollment @relation(fields: [enrollmentId, courseId, studentId], references: [id, courseId, studentId], onDelete: Restrict)
+  student        Student @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  placements     AttemptQuestion[]
+  files          StoredFile[] @relation("AttemptFiles")
+  grade          Grade?
+  @@unique([examId, studentId])
+  @@unique([id, examId])
+  @@index([studentId, startedAt])
+  @@index([examId, status])
+  @@map("exam_attempts")
+}
+
+model AttemptQuestion {
+  id         String @id @default(uuid()) @db.Uuid
+  attemptId  String @map("attempt_id") @db.Uuid
+  examId     String @map("exam_id") @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  position   Int
+  attempt    ExamAttempt @relation(fields: [attemptId, examId], references: [id, examId], onDelete: Restrict)
+  question   ExamQuestion @relation(fields: [questionId, examId], references: [id, examId], onDelete: Restrict)
+  answer     StudentAnswer?
+  @@unique([attemptId, questionId])
+  @@unique([attemptId, position])
+  @@unique([id, questionId])
+  @@map("attempt_questions")
+}
+
+model StudentAnswer {
+  id                String @id @default(uuid()) @db.Uuid
+  attemptQuestionId String @unique @map("attempt_question_id") @db.Uuid
+  questionId        String @map("question_id") @db.Uuid
+  optionId          String @map("option_id") @db.Uuid
+  savedAt           DateTime @default(now()) @map("saved_at") @db.Timestamptz(6)
+  placement         AttemptQuestion @relation(fields: [attemptQuestionId, questionId], references: [id, questionId], onDelete: Restrict)
+  option            MultipleChoiceOption @relation(fields: [optionId, questionId], references: [id, questionId], onDelete: Restrict)
+  @@unique([attemptQuestionId, questionId])
+  @@map("student_answers")
+}
+
+model StoredFile {
+  id              String @id @default(uuid()) @db.Uuid
+  kind            FileKind
+  examId          String? @map("exam_id") @db.Uuid
+  attemptId       String? @map("attempt_id") @db.Uuid
+  originalName    String @map("original_name") @db.VarChar(255)
+  mimeType        String @map("mime_type") @db.VarChar(100)
+  sizeBytes       Int @map("size_bytes")
+  storageKey      String? @unique @map("storage_key") @db.Text
+  sha256          String @db.VarChar(64)
+  uploadedAt      DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  purgeAfter      DateTime? @map("purge_after") @db.Timestamptz(6)
+  purgedAt        DateTime? @map("purged_at") @db.Timestamptz(6)
+  exam            Exam? @relation("ExamFiles", fields: [examId], references: [id], onDelete: Restrict)
+  attempt         ExamAttempt? @relation("AttemptFiles", fields: [attemptId], references: [id], onDelete: Restrict)
+  @@index([attemptId])
+  @@index([purgeAfter, purgedAt])
+  @@map("stored_files")
+}
+
+model Grade {
+  id          String @id @default(uuid()) @db.Uuid
+  attemptId   String @unique @map("attempt_id") @db.Uuid
+  score       Decimal @db.Decimal(8, 2)
+  status      GradeStatus @default(DRAFT)
+  gradedAt    DateTime @default(now()) @map("graded_at") @db.Timestamptz(6)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  attempt     ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  revisions   GradeRevision[]
+  objections  GradeObjection[]
+  @@index([status, publishedAt])
+  @@map("grades")
+}
+
+model GradeRevision {
+  id          String @id @default(uuid()) @db.Uuid
+  gradeId     String @map("grade_id") @db.Uuid
+  professorId String @map("professor_id") @db.Uuid
+  oldScore    Decimal @map("old_score") @db.Decimal(8, 2)
+  newScore    Decimal @map("new_score") @db.Decimal(8, 2)
+  reasonFa    String @map("reason_fa") @db.Text
+  changedAt   DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+  grade       Grade @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  professor   Professor @relation(fields: [professorId], references: [userId], onDelete: Restrict)
+  decision    ObjectionDecision?
+  @@index([gradeId, changedAt])
+  @@map("grade_revisions")
+}
+
+model GradeObjection {
+  id          String @id @default(uuid()) @db.Uuid
+  gradeId     String @map("grade_id") @db.Uuid
+  studentId   String @map("student_id") @db.Uuid
+  round       Int
+  reasonFa    String @map("reason_fa") @db.Text
+  status      ObjectionStatus @default(SUBMITTED)
+  submittedAt DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  grade       Grade @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  student     Student @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  decision    ObjectionDecision?
+  @@unique([gradeId, round])
+  @@index([studentId, submittedAt])
+  @@index([gradeId, status])
+  @@map("grade_objections")
+}
+
+model ObjectionDecision {
+  id          String @id @default(uuid()) @db.Uuid
+  objectionId String @unique @map("objection_id") @db.Uuid
+  professorId String @map("professor_id") @db.Uuid
+  responseFa  String @map("response_fa") @db.Text
+  decidedAt   DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+  revisionId  String? @unique @map("revision_id") @db.Uuid
+  objection   GradeObjection @relation(fields: [objectionId], references: [id], onDelete: Restrict)
+  professor   Professor @relation(fields: [professorId], references: [userId], onDelete: Restrict)
+  revision    GradeRevision? @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  @@index([professorId, decidedAt])
+  @@map("objection_decisions")
+}
+
+model AuditEvent {
+  id          String @id @default(uuid()) @db.Uuid
+  actorId     String? @map("actor_id") @db.Uuid
+  action      String @db.VarChar(80)
+  entityType  String @map("entity_type") @db.VarChar(80)
+  entityId    String @map("entity_id") @db.Uuid
+  details     Json?
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actor       User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([entityType, entityId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@map("audit_events")
+}
