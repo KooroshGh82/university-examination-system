@@ -1,2 +1,61 @@
-'use client';import {useSearchParams} from 'next/navigation';import {useState} from 'react';import {professorApi} from '@/lib/api';import {useLoad} from '@/lib/use-load';import {Heading,State} from '@/components/shell';import {SubmissionRow} from '@/components/professor-rows';
-export default function Submissions(){const params=useSearchParams(),[filter,setFilter]=useState(params.get('exam')||'');const {data,loading,error,reload}=useLoad(async()=>{const [attempts,exams,grades]=await Promise.all([professorApi.attempts(),professorApi.exams(),professorApi.grades()]);return {attempts,exams,grades}});const shown=data?.attempts.filter(a=>!filter||a.examId===filter)||[];return <><Heading eyebrow="پنل استاد / پاسخ‌ها" title="پاسخ‌های دانشجویان" description="فقط پاسخ‌های آزمون‌های درس‌های تخصیص‌یافته نمایش داده می‌شوند."/><State loading={loading} error={error} retry={reload} empty={!data}><label className="block max-w-sm">فیلتر آزمون<select className="field mt-2" value={filter} onChange={e=>setFilter(e.target.value)}><option value="">همه آزمون‌ها</option>{data?.exams.map(e=><option key={e.id} value={e.id}>{e.titleFa}</option>)}</select></label><section className="card p-6">{shown.length?shown.map(a=><SubmissionRow key={a.id} attempt={a} exam={data?.exams.find(e=>e.id===a.examId)} grade={data?.grades.find(g=>g.attemptId===a.id)}/>):<p className="muted">پاسخی برای این آزمون وجود ندارد.</p>}</section></State></>}
+"use client";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { professorApi } from "@/lib/api";
+import { useLoad } from "@/lib/use-load";
+import { Heading, State } from "@/components/shell";
+import { SubmissionRow } from "@/components/professor-rows";
+export default function Submissions() {
+  const params = useSearchParams(),
+    [filter, setFilter] = useState(params.get("exam") || "");
+  const { data, loading, error, reload } = useLoad(async () => {
+    const [attempts, exams, grades] = await Promise.all([
+      professorApi.attempts(),
+      professorApi.exams(),
+      professorApi.grades(),
+    ]);
+    return { attempts, exams, grades };
+  });
+  const shown =
+    data?.attempts.filter((a) => !filter || a.examId === filter) || [];
+  return (
+    <>
+      <Heading
+        eyebrow="پنل استاد / پاسخ‌ها"
+        title="پاسخ‌های دانشجویان"
+        description="فقط پاسخ‌های آزمون‌های درس‌های تخصیص‌یافته نمایش داده می‌شوند."
+      />
+      <State loading={loading} error={error} retry={reload} empty={!data}>
+        <label className="block max-w-sm">
+          فیلتر آزمون
+          <select
+            className="field mt-2"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="">همه آزمون‌ها</option>
+            {data?.exams.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.titleFa}
+              </option>
+            ))}
+          </select>
+        </label>
+        <section className="card p-6">
+          {shown.length ? (
+            shown.map((a) => (
+              <SubmissionRow
+                key={a.id}
+                attempt={a}
+                exam={data?.exams.find((e) => e.id === a.examId)}
+                grade={data?.grades.find((g) => g.attemptId === a.id)}
+              />
+            ))
+          ) : (
+            <p className="muted">پاسخی برای این آزمون وجود ندارد.</p>
+          )}
+        </section>
+      </State>
+    </>
+  );
+}

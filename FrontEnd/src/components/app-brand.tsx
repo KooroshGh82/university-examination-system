@@ -1,0 +1,5 @@
+import {UserRound} from 'lucide-react';
+export function AppLogo({className='h-11 w-11'}:{className?:string}){
+ return <span className={`inline-flex shrink-0 items-center justify-center rounded-xl bg-[#2dd2b0] text-[#102c47] ${className}`} aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" className="h-[72%] w-[72%]"><path d="M4 8c4-2 8-1 12 2 4-3 8-4 12-2v17c-4-2-8-1-12 2-4-3-8-4-12-2V8Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round"/><path d="M16 10v17M8 13l4 1M8 18l4 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="m20 16 2 2 4-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg></span>;
+}
+export function UserAvatar({large=false}:{large?:boolean}){return <span aria-hidden="true" className={`inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--accent-line)] bg-[var(--surface-tint)] text-[var(--accent)] ${large?'h-16 w-16':'h-10 w-10'}`}><UserRound size={large?32:21} strokeWidth={1.8}/></span>}

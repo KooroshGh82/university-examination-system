@@ -6,7 +6,7 @@ import { uuid } from '../descriptive/descriptive.schemas.js';
 
 type Actor={id:string;role:UserRole};type Tx=Prisma.TransactionClient;
 type Upload={buffer:Buffer;mimetype:string;originalname:string};
-const missing=(what:string):never=>{throw new AppError(404,'NOT_FOUND',`${what} not found`);};
+const missing=(what:string):never=>{throw new AppError(404,'NOT_FOUND','اطلاعات مورد نظر یافت نشد.');};
 const conflict=(code:string,message:string):never=>{throw new AppError(409,code,message);};
 const nowDb=async(tx:Tx)=>{const rows=await tx.$queryRaw<{now:Date}[]>`SELECT clock_timestamp() AS now`;return rows[0]!.now;};
 const view=(f:{id:string;kind:string;originalName:string;mimeType:string;sizeBytes:number;sha256:string;uploadedAt:Date;purgedAt:Date|null})=>({id:f.id,kind:f.kind,originalName:f.originalName,mimeType:f.mimeType,sizeBytes:f.sizeBytes,sha256:f.sha256,uploadedAt:f.uploadedAt,purgedAt:f.purgedAt});
@@ -19,7 +19,9 @@ const canReadQuestion=async(tx:Tx,e:{id:string;courseId:string;professorId:strin
   if(actor.role!=='STUDENT')return staff(tx,e,actor);
   if(!await tx.examParticipant.findUnique({where:{examId_studentId:{examId:e.id,studentId:actor.id}}}))missing('File');
   const enrollment=await tx.enrollment.findUnique({where:{courseId_studentId:{courseId:e.courseId,studentId:actor.id}}});
+  const attempt=await tx.examAttempt.findUnique({where:{examId_studentId:{examId:e.id,studentId:actor.id}}});
   const now=await nowDb(tx);
+  if(!attempt||attempt.status!=='IN_PROGRESS'||now>=attempt.deadlineAt)missing('File');
   if(!enrollment?.isActive||e.status!=='PUBLISHED'||now<e.startsAt||now>=e.endsAt)missing('File');
 };
 const attemptAccess=async(tx:Tx,a:{id:string;studentId:string;courseId:string;status:string;exam:{id:string;courseId:string;professorId:string;assignmentId:string}},actor:Actor)=>{
@@ -34,7 +36,7 @@ export const filesService={
       await tx.$queryRaw`SELECT id FROM exams WHERE id = ${examId}::uuid FOR UPDATE`;
       const e=await tx.exam.findUnique({where:{id:examId}})??missing('Exam');
       await staff(tx,e,actor);
-      if(e.type!=='DESCRIPTIVE'||e.status!=='DRAFT')conflict('EXAM_LOCKED','Only draft descriptive exams accept question files');
+      if(e.type!=='DESCRIPTIVE'||e.status!=='DRAFT')conflict('EXAM_LOCKED','فایل سؤال فقط به پیش‌نویس آزمون تشریحی اضافه می‌شود.');
       const f=await tx.storedFile.create({data:{kind:'EXAM_QUESTION',examId:e.id,storageKey:key,...meta}});
       await tx.auditEvent.create({data:{actorId:actor.id,action:'QUESTION_FILE_UPLOADED',entityType:'StoredFile',entityId:f.id}});
       return view(f);
@@ -46,7 +48,7 @@ export const filesService={
       await tx.$queryRaw`SELECT id FROM exams WHERE id = ${examId}::uuid FOR UPDATE`;
       const e=await tx.exam.findUnique({where:{id:examId}})??missing('Exam');
       await staff(tx,e,actor);
-      if(e.status!=='DRAFT')conflict('EXAM_LOCKED','Published question files cannot be changed');
+      if(e.status!=='DRAFT')conflict('EXAM_LOCKED','فایل سؤال پس از انتشار آزمون قابل تغییر نیست.');
       const f=await tx.storedFile.findUnique({where:{id:fileId}});
       if(!f||f.kind!=='EXAM_QUESTION'||f.examId!==e.id)return missing('File');
       await tx.storedFile.delete({where:{id:f.id}});
@@ -61,10 +63,10 @@ export const filesService={
       await tx.$queryRaw`SELECT id FROM exam_attempts WHERE id = ${attemptId}::uuid FOR UPDATE`;
       const a=await tx.examAttempt.findUnique({where:{id:attemptId},include:{exam:true}})??missing('Attempt');
       if(actor.role!=='STUDENT'||a.studentId!==actor.id||a.exam.type!=='DESCRIPTIVE')missing('Attempt');
-      if(a.status!=='IN_PROGRESS')conflict('ATTEMPT_FINALIZED','Attempt cannot accept files');
-      if(await nowDb(tx)>=a.deadlineAt)conflict('DEADLINE_PASSED','Attempt deadline passed');
+      if(a.status!=='IN_PROGRESS')conflict('ATTEMPT_FINALIZED','این پاسخ‌نامه دیگر امکان دریافت فایل ندارد.');
+      if(await nowDb(tx)>=a.deadlineAt)conflict('DEADLINE_PASSED','مهلت پاسخ‌گویی به پایان رسیده است.');
       const count=await tx.storedFile.count({where:{attemptId:a.id,kind:'STUDENT_ANSWER',storageKey:{not:null},purgedAt:null}});
-      if(count>=5)conflict('FILE_LIMIT','At most five answer files are allowed');
+      if(count>=5)conflict('FILE_LIMIT','حداکثر ۵ فایل پاسخ می‌توانید بارگذاری کنید.');
       const f=await tx.storedFile.create({data:{kind:'STUDENT_ANSWER',attemptId:a.id,storageKey:key,...meta}});
       await tx.auditEvent.create({data:{actorId:actor.id,action:'ANSWER_FILE_UPLOADED',entityType:'StoredFile',entityId:f.id}});
       return view(f);
@@ -87,7 +89,7 @@ export const filesService={
       if(f.kind==='EXAM_QUESTION'){if(!f.exam)return missing('File');await canReadQuestion(tx,f.exam,actor);}
       else{if(!f.attempt)return missing('File');await attemptAccess(tx,f.attempt,actor);}
     });
-    if(!f.storageKey||f.purgedAt)throw new AppError(410,'FILE_PURGED','File bytes have been purged');
+    if(!f.storageKey||f.purgedAt)throw new AppError(410,'FILE_PURGED','این فایل حذف شده و دیگر قابل دریافت نیست.');
     const bytes=await privateStore.read(f.storageKey);
     const extension=f.mimeType==='application/pdf'?'pdf':f.mimeType==='image/png'?'png':'jpg';
     return {bytes,mimeType:f.mimeType,downloadName:`${f.kind==='EXAM_QUESTION'?'question':'answer'}-${f.id}.${extension}`};
@@ -98,7 +100,7 @@ export const filesService={
       await tx.$queryRaw`SELECT id FROM exam_attempts WHERE id = ${attemptId}::uuid FOR UPDATE`;
       const a=await tx.examAttempt.findUnique({where:{id:attemptId},include:{exam:true}})??missing('Attempt');
       if(actor.role!=='STUDENT'||a.studentId!==actor.id||a.exam.type!=='DESCRIPTIVE')missing('Attempt');
-      if(a.status!=='IN_PROGRESS'||await nowDb(tx)>=a.deadlineAt)conflict('ATTEMPT_FINALIZED','File cannot be deleted after cutoff');
+      if(a.status!=='IN_PROGRESS'||await nowDb(tx)>=a.deadlineAt)conflict('ATTEMPT_FINALIZED','پس از پایان مهلت، امکان حذف فایل وجود ندارد.');
       const f=await tx.storedFile.findUnique({where:{id:fileId}});
       if(!f||f.attemptId!==a.id||!f.storageKey)return missing('File');
       await tx.storedFile.delete({where:{id:f.id}});

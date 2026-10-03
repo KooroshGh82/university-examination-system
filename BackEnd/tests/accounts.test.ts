@@ -30,3 +30,16 @@ test('password change verifies old password, hashes new password and revokes oth
 test('only admin passes the account provisioning role guard',()=>{
  for(const role of ['STUDENT','PROFESSOR','ADMIN'] as const){let error:any;requireRole('ADMIN')({auth:{user:{...user,role}}} as any,{} as any,(e?:any)=>{error=e});assert.equal(error?.status,role==='ADMIN'?undefined:403)}
 });
+
+test('account validation rejects numbers in names and nonnumeric codes for both roles before database writes',async()=>{
+ const original=usersRepository.createProvisioned;let writes=0;
+ try{
+  usersRepository.createProvisioned=async input=>{writes++;return {...user,...input}};
+  for(const role of ['STUDENT','PROFESSOR'] as const){
+   for(const fullName of ['Ali123','علی۱۲۳','علی١٢٣','123','💡','   '])await assert.rejects(usersService.provision(role,{fullName,universityId:'001'}));
+   for(const universityId of ['abc','12a','12-34','12 34','+123','1.2',''])await assert.rejects(usersService.provision(role,{fullName:'علی رضایی',universityId}));
+  }
+  assert.equal(writes,0);
+  for(const universityId of ['۰۰۱','٠٠١','001']){const result=await usersService.provision('STUDENT',{fullName:'علی رضایی',universityId});assert.equal(result.universityId,'001')}
+ }finally{usersRepository.createProvisioned=original}
+});

@@ -6,7 +6,7 @@ import { createExam,updateExam,questionCreate,questionUpdate,reorder,optionCreat
 
 type Actor={id:string;role:UserRole};
 type Tx=Prisma.TransactionClient;
-const missing=(name:string):never=>{throw new AppError(404,'NOT_FOUND',`${name} not found`);};
+const missing=(name:string):never=>{throw new AppError(404,'NOT_FOUND','اطلاعات مورد نظر یافت نشد.');};
 const conflict=(message:string):never=>{throw new AppError(409,'CONFLICT',message);};
 const invalid=(message:string):never=>{throw new AppError(422,'INVALID_EXAM_CONTENT',message);};
 const examView=(e:Exam)=>({id:e.id,courseId:e.courseId,professorId:e.professorId,assignmentId:e.assignmentId,titleFa:e.titleFa,instructionsFa:e.instructionsFa,type:e.type,status:e.status,startsAt:e.startsAt,endsAt:e.endsAt,durationMinutes:e.durationMinutes,maxPoints:e.maxPoints.toString(),publishedAt:e.publishedAt,createdAt:e.createdAt});
@@ -23,7 +23,7 @@ const manage=async(tx:Tx,e:Exam,actor:Actor)=>{
   const a=await tx.professorAssignment.findUnique({where:{id:e.assignmentId}});
   if(!a?.isActive || a.courseId!==e.courseId || a.professorId!==e.professorId || (actor.role==='PROFESSOR'&&e.professorId!==actor.id)) missing('Exam');
 };
-const draft=(e:Exam)=>{if(e.status!=='DRAFT') conflict('Exam content is locked after publication');};
+const draft=(e:Exam)=>{if(e.status!=='DRAFT') conflict('پس از انتشار، محتوای آزمون قابل تغییر نیست.');};
 const existingQuestion=async(tx:Tx,e:Exam,id:string)=>{
   const q=await tx.examQuestion.findUnique({where:{id}});
   if(q?.examId!==e.id) missing('Question');
@@ -47,7 +47,7 @@ export const examsService={
         ? await tx.professorAssignment.findUnique({where:{courseId_professorId:{courseId:input.courseId,professorId:actor.id}}})
         : input.assignmentId?await tx.professorAssignment.findUnique({where:{id:input.assignmentId}}):null;
       if(!assignment?.isActive || assignment.courseId!==input.courseId || (actor.role==='PROFESSOR'&&assignment.professorId!==actor.id))
-        throw new AppError(403,'ASSIGNMENT_REQUIRED','Active matching professor assignment required');
+        throw new AppError(403,'ASSIGNMENT_REQUIRED','برای ایجاد آزمون باید به این درس تخصیص داده شده باشید.');
       const e=await tx.exam.create({data:{courseId:input.courseId,assignmentId:assignment.id,professorId:assignment.professorId,createdByAdminId:actor.role==='ADMIN'?actor.id:null,titleFa:input.titleFa,instructionsFa:input.instructionsFa,type:input.type,startsAt:input.startsAt,endsAt:input.endsAt,durationMinutes:input.durationMinutes,maxPoints:input.maxPoints}});
       await audit(tx,actor,'EXAM_CREATED','Exam',e.id);return examView(e);
     });
@@ -76,14 +76,14 @@ export const examsService={
     const input=updateExam.parse(body);
     return withDraft(id,actor,async(tx,e)=>{
       const start=input.startsAt??e.startsAt,end=input.endsAt??e.endsAt;
-      if(end<=start) invalid('End must be after start');
+      if(end<=start) invalid('زمان پایان باید بعد از زمان شروع باشد.');
       const updated=await tx.exam.update({where:{id:e.id},data:input});
       await audit(tx,actor,'EXAM_UPDATED','Exam',e.id,{fields:Object.keys(input)});return examView(updated);
     });
   },
   async remove(id:string,actor:Actor){return withDraft(id,actor,async(tx,e)=>{
     const [attempts,files]=await Promise.all([tx.examAttempt.count({where:{examId:e.id}}),tx.storedFile.count({where:{examId:e.id}})]);
-    if(attempts||files) conflict('Exam has attempts or files and cannot be deleted');
+    if(attempts||files) conflict('این آزمون پاسخ‌نامه یا فایل دارد و قابل حذف نیست.');
     const qs=await tx.examQuestion.findMany({where:{examId:e.id},select:{id:true}});
     await tx.multipleChoiceOption.deleteMany({where:{questionId:{in:qs.map(q=>q.id)}}});
     await tx.examQuestion.deleteMany({where:{examId:e.id}});
@@ -91,28 +91,28 @@ export const examsService={
     await audit(tx,actor,'EXAM_DELETED','Exam',e.id,{titleFa:e.titleFa});
   });},
   async publish(id:string,actor:Actor){return withDraft(id,actor,async(tx,e)=>{
-    const now=await dbNow(tx);if(e.endsAt<=now) conflict('Cannot publish an exam after its end');
+    const now=await dbNow(tx);if(e.endsAt<=now) conflict('زمان پایان آزمون گذشته است و امکان انتشار وجود ندارد.');
     const qs=await tx.examQuestion.findMany({where:{examId:e.id},include:{options:true}});
     const files=await tx.storedFile.count({where:{examId:e.id,kind:'EXAM_QUESTION',purgedAt:null}});
-    if(!qs.length && !(e.type==='DESCRIPTIVE'&&files)) invalid('Exam requires questions or a descriptive question file');
+    if(!qs.length && !(e.type==='DESCRIPTIVE'&&files)) invalid('ابتدا سؤال‌ها یا فایل سؤال تشریحی را اضافه کنید.');
     if(e.type==='MULTIPLE_CHOICE'){
-      if(!qs.length) invalid('Multiple-choice exam requires questions');
+      if(!qs.length) invalid('برای آزمون چهارگزینه‌ای باید سؤال اضافه کنید.');
       for(const q of qs){
-        if(q.points.lte(0)||q.options.length<2||q.options.filter(o=>o.isCorrect).length!==1) invalid('Each multiple-choice question requires positive points, two options and exactly one correct answer');
+        if(q.points.lte(0)||q.options.length<2||q.options.filter(o=>o.isCorrect).length!==1) invalid('هر سؤال باید نمره مثبت، حداقل دو گزینه و دقیقاً یک پاسخ صحیح داشته باشد.');
       }
     }else{
-      if(qs.some(q=>q.options.length)) invalid('Descriptive questions cannot have multiple-choice options');
-      if(qs.some(q=>q.points.lte(0))) invalid('Descriptive question points must be positive');
+      if(qs.some(q=>q.options.length)) invalid('سؤال تشریحی نمی‌تواند گزینه چهارگزینه‌ای داشته باشد.');
+      if(qs.some(q=>q.points.lte(0))) invalid('نمره سؤال‌های تشریحی باید بیشتر از صفر باشد.');
     }
-    if(qs.length&&qs.reduce((sum,q)=>sum.plus(q.points),new Prisma.Decimal(0)).comparedTo(e.maxPoints)!==0) invalid('Question points must equal exam maximum');
+    if(qs.length&&qs.reduce((sum,q)=>sum.plus(q.points),new Prisma.Decimal(0)).comparedTo(e.maxPoints)!==0) invalid('مجموع نمره سؤال‌ها باید برابر نمره کل آزمون باشد.');
     const updated=await tx.exam.update({where:{id:e.id},data:{status:'PUBLISHED',publishedAt:now}});
     await audit(tx,actor,'EXAM_PUBLISHED','Exam',e.id);return examView(updated);
   });},
   async close(id:string,actor:Actor){return prisma.$transaction(async tx=>{
     const e=await lockExam(tx,uuid.parse(id));await manage(tx,e,actor);
-    if(e.status!=='PUBLISHED') conflict('Only published exams can be closed');
+    if(e.status!=='PUBLISHED') conflict('فقط آزمون منتشرشده قابل پایان دادن است.');
     const now=await dbNow(tx);
-    if(now<=e.startsAt) conflict('Exam has not started; cancel it instead');
+    if(now<=e.startsAt) conflict('آزمون هنوز شروع نشده است؛ می‌توانید آن را لغو کنید.');
     if(now>=e.endsAt) return examView(e);
     const updated=await tx.exam.update({where:{id:e.id},data:{endsAt:now}});
     await tx.examAttempt.updateMany({where:{examId:e.id,status:'IN_PROGRESS',deadlineAt:{gt:now}},data:{deadlineAt:now}});
@@ -120,8 +120,8 @@ export const examsService={
   });},
   async cancel(id:string,actor:Actor){return prisma.$transaction(async tx=>{
     const e=await lockExam(tx,uuid.parse(id));await manage(tx,e,actor);
-    if(e.status==='CANCELLED') conflict('Exam already cancelled');
-    if(await tx.examAttempt.count({where:{examId:e.id}})) conflict('Cannot cancel an exam with attempts; close it instead');
+    if(e.status==='CANCELLED') conflict('این آزمون قبلاً لغو شده است.');
+    if(await tx.examAttempt.count({where:{examId:e.id}})) conflict('آزمونی که دانشجویان شروع کرده‌اند قابل لغو نیست؛ آن را پایان دهید.');
     const updated=await tx.exam.update({where:{id:e.id},data:{status:'CANCELLED'}});
     await audit(tx,actor,'EXAM_CANCELLED','Exam',e.id);return examView(updated);
   });},
@@ -141,13 +141,13 @@ export const examsService={
   });},
   async removeQuestion(id:string,qid:string,actor:Actor){return withDraft(id,actor,async(tx,e)=>{
     const q=await existingQuestion(tx,e,uuid.parse(qid));
-    if(await tx.attemptQuestion.count({where:{questionId:q.id}})) conflict('Question already placed in an attempt');
+    if(await tx.attemptQuestion.count({where:{questionId:q.id}})) conflict('این سؤال در پاسخ‌نامه استفاده شده و قابل حذف نیست.');
     await tx.multipleChoiceOption.deleteMany({where:{questionId:q.id}});await tx.examQuestion.delete({where:{id:q.id}});
     await audit(tx,actor,'QUESTION_DELETED','ExamQuestion',q.id,{examId:e.id});
   });},
   async reorderQuestions(id:string,body:unknown,actor:Actor){const {questionIds}=reorder.parse(body);return withDraft(id,actor,async(tx,e)=>{
     const qs=await tx.examQuestion.findMany({where:{examId:e.id},select:{id:true,authorOrder:true}});
-    if(qs.length!==questionIds.length||qs.some(q=>!questionIds.includes(q.id))) invalid('Provide every question exactly once');
+    if(qs.length!==questionIds.length||qs.some(q=>!questionIds.includes(q.id))) invalid('هر سؤال را دقیقاً یک بار در ترتیب سؤال‌ها قرار دهید.');
     const max=Math.max(0,...qs.map(q=>q.authorOrder));
     for(let i=0;i<questionIds.length;i++) await tx.examQuestion.update({where:{id:questionIds[i]!},data:{authorOrder:max+i+1}});
     for(let i=0;i<questionIds.length;i++) await tx.examQuestion.update({where:{id:questionIds[i]!},data:{authorOrder:i+1}});
@@ -155,20 +155,20 @@ export const examsService={
     const ordered=await tx.examQuestion.findMany({where:{examId:e.id},orderBy:{authorOrder:'asc'}});return ordered.map(questionView);
   });},
   async addOption(id:string,qid:string,body:unknown,actor:Actor){const input=optionCreate.parse(body);return withDraft(id,actor,async(tx,e)=>{
-    if(e.type!=='MULTIPLE_CHOICE') invalid('Only multiple-choice exams accept options');
+    if(e.type!=='MULTIPLE_CHOICE') invalid('فقط سؤال‌های چهارگزینه‌ای می‌توانند گزینه داشته باشند.');
     const q=await existingQuestion(tx,e,uuid.parse(qid));
-    if(input.isCorrect&&await tx.multipleChoiceOption.count({where:{questionId:q.id,isCorrect:true}})) conflict('Question already has a correct option; use set-correct');
+    if(input.isCorrect&&await tx.multipleChoiceOption.count({where:{questionId:q.id,isCorrect:true}})) conflict('این سؤال پاسخ صحیح دارد؛ پاسخ صحیح را از گزینه مربوط تغییر دهید.');
     const o=await tx.multipleChoiceOption.create({data:{questionId:q.id,...input}});
     await audit(tx,actor,'OPTION_CREATED','MultipleChoiceOption',o.id,{questionId:q.id});return optionView(o);
   });},
   async updateOption(id:string,qid:string,oid:string,body:unknown,actor:Actor){const input=optionUpdate.parse(body);return withDraft(id,actor,async(tx,e)=>{
     const q=await existingQuestion(tx,e,uuid.parse(qid));const o=await existingOption(tx,q.id,uuid.parse(oid));
-    if(input.isCorrect&&!o.isCorrect&&await tx.multipleChoiceOption.count({where:{questionId:q.id,isCorrect:true}})) conflict('Use set-correct to replace the correct option');
+    if(input.isCorrect&&!o.isCorrect&&await tx.multipleChoiceOption.count({where:{questionId:q.id,isCorrect:true}})) conflict('پاسخ صحیح را از گزینه انتخاب پاسخ درست تغییر دهید.');
     const updated=await tx.multipleChoiceOption.update({where:{id:o.id},data:input});
     await audit(tx,actor,'OPTION_UPDATED','MultipleChoiceOption',o.id,{fields:Object.keys(input)});return optionView(updated);
   });},
   async setCorrect(id:string,qid:string,oid:string,actor:Actor){return withDraft(id,actor,async(tx,e)=>{
-    if(e.type!=='MULTIPLE_CHOICE') invalid('Only multiple-choice exams have correct options');
+    if(e.type!=='MULTIPLE_CHOICE') invalid('پاسخ صحیح فقط برای آزمون چهارگزینه‌ای قابل تعیین است.');
     const q=await existingQuestion(tx,e,uuid.parse(qid));const o=await existingOption(tx,q.id,uuid.parse(oid));
     await tx.multipleChoiceOption.updateMany({where:{questionId:q.id,isCorrect:true},data:{isCorrect:false}});
     const updated=await tx.multipleChoiceOption.update({where:{id:o.id},data:{isCorrect:true}});
@@ -176,7 +176,7 @@ export const examsService={
   });},
   async removeOption(id:string,qid:string,oid:string,actor:Actor){return withDraft(id,actor,async(tx,e)=>{
     const q=await existingQuestion(tx,e,uuid.parse(qid));const o=await existingOption(tx,q.id,uuid.parse(oid));
-    if(await tx.studentAnswer.count({where:{optionId:o.id}})) conflict('Option has answers');
+    if(await tx.studentAnswer.count({where:{optionId:o.id}})) conflict('این گزینه دارای پاسخ دانشجو است و قابل حذف نیست.');
     await tx.multipleChoiceOption.delete({where:{id:o.id}});await audit(tx,actor,'OPTION_DELETED','MultipleChoiceOption',o.id,{questionId:q.id});
   });}
 };
