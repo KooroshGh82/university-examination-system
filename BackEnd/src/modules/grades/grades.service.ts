@@ -7,7 +7,7 @@ import { gradeList,performanceQuery,historyQuery,uuid } from './grades.schemas.j
 import { submissionsService } from '../submissions/submissions.service.js';
 
 type Actor={id:string;role:UserRole};
-const missing=(thing:string):never=>{throw new AppError(404,'NOT_FOUND',`${thing} not found`);};
+const missing=(thing:string):never=>{throw new AppError(404,'NOT_FOUND','اطلاعات مورد نظر یافت نشد.');};
 const page=<T extends {id:string}>(rows:T[],limit:number)=>{const more=rows.length>limit;if(more)rows.pop();return {items:rows,...(more?{nextCursor:rows.at(-1)!.id}:{})};};
 const view=(g:Awaited<ReturnType<typeof repo.grade>>)=>{
   if(!g)return missing('Grade');

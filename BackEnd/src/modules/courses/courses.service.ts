@@ -5,7 +5,7 @@ import { coursesRepository as repo } from './courses.repository.js';
 import { createCourse, patchCourse, linkStudent, linkProfessor, patchLink, courseListQuery, linkListQuery, uuid } from './courses.schemas.js';
 
 type Actor = { id: string; role: UserRole };
-const missing = (what: string): never => { throw new AppError(404, 'NOT_FOUND', `${what} not found`); };
+const missing = (what: string): never => { throw new AppError(404, 'NOT_FOUND', 'اطلاعات مورد نظر یافت نشد.'); };
 const conflict = (message: string): never => { throw new AppError(409, 'CONFLICT', message); };
 const audit = (actor: Actor, action: string, entityType: string, entityId: string, details?: object) =>
   ({ actorId: actor.id, action, entityType, entityId, details: details ?? Prisma.JsonNull });
@@ -69,7 +69,7 @@ export const coursesService = {
       const [enrollments,assignments,exams] = await Promise.all([
         tx.enrollment.count({where:{courseId:id}}), tx.professorAssignment.count({where:{courseId:id}}), tx.exam.count({where:{courseId:id}})
       ]);
-      if (enrollments || assignments || exams) conflict('Course has academic history; keep it and deactivate links instead');
+      if (enrollments || assignments || exams) conflict('این درس سابقه آموزشی دارد و قابل حذف نیست.');
       await tx.course.delete({where:{id}});
       await tx.auditEvent.create({data:audit(actor,'COURSE_DELETED','Course',id,{code:c.code,termCode:c.termCode})});
     });
@@ -87,7 +87,7 @@ export const coursesService = {
     courseId=parseCourse(courseId); const {studentId}=linkStudent.parse(body);
     return prisma.$transaction(async tx => {
       const [c,s,existing]=await Promise.all([tx.course.findUnique({where:{id:courseId}}),tx.student.findUnique({where:{userId:studentId},include:{user:true}}),tx.enrollment.findUnique({where:{courseId_studentId:{courseId,studentId}}})]);
-      if (!c) missing('Course'); if (!s || !s.user.isActive) missing('Student'); if (existing) conflict('Enrollment already exists; use PATCH to reactivate');
+      if (!c) missing('Course'); if (!s || !s.user.isActive) missing('Student'); if (existing) conflict('این دانشجو قبلاً در درس ثبت شده است.');
       const link=await tx.enrollment.create({data:{courseId,studentId}});
       await tx.auditEvent.create({data:audit(actor,'ENROLLMENT_CREATED','Enrollment',link.id,{courseId,studentId})});
       return link;
@@ -97,7 +97,7 @@ export const coursesService = {
     courseId=parseCourse(courseId); const {professorId}=linkProfessor.parse(body);
     return prisma.$transaction(async tx => {
       const [c,p,existing]=await Promise.all([tx.course.findUnique({where:{id:courseId}}),tx.professor.findUnique({where:{userId:professorId},include:{user:true}}),tx.professorAssignment.findUnique({where:{courseId_professorId:{courseId,professorId}}})]);
-      if (!c) missing('Course'); if (!p || !p.user.isActive) missing('Professor'); if (existing) conflict('Assignment already exists; use PATCH to reactivate');
+      if (!c) missing('Course'); if (!p || !p.user.isActive) missing('Professor'); if (existing) conflict('این استاد قبلاً به درس تخصیص داده شده است.');
       const link=await tx.professorAssignment.create({data:{courseId,professorId}});
       await tx.auditEvent.create({data:audit(actor,'ASSIGNMENT_CREATED','ProfessorAssignment',link.id,{courseId,professorId})});
       return link;
@@ -119,13 +119,13 @@ export const coursesService = {
     return prisma.$transaction(async tx => {
       if (kind==='enrollment') {
         const l=await tx.enrollment.findUnique({where:{id:linkId}}) ?? missing('Enrollment'); if (l.courseId!==courseId) missing('Enrollment');
-        if (isActive) { const s=await tx.user.findUnique({where:{id:l.studentId}}); if (!s?.isActive) conflict('Student account inactive'); }
+        if (isActive) { const s=await tx.user.findUnique({where:{id:l.studentId}}); if (!s?.isActive) conflict('حساب دانشجو غیرفعال است.'); }
         const updated=await tx.enrollment.update({where:{id:linkId},data:{isActive}});
         await tx.auditEvent.create({data:audit(actor,'ENROLLMENT_STATUS_CHANGED','Enrollment',linkId,{isActive})});
         return updated;
       }
       const l=await tx.professorAssignment.findUnique({where:{id:linkId}}) ?? missing('Assignment'); if (l.courseId!==courseId) missing('Assignment');
-      if (isActive) { const p=await tx.user.findUnique({where:{id:l.professorId}}); if (!p?.isActive) conflict('Professor account inactive'); }
+      if (isActive) { const p=await tx.user.findUnique({where:{id:l.professorId}}); if (!p?.isActive) conflict('حساب استاد غیرفعال است.'); }
       const updated=await tx.professorAssignment.update({where:{id:linkId},data:{isActive}});
       await tx.auditEvent.create({data:audit(actor,'ASSIGNMENT_STATUS_CHANGED','ProfessorAssignment',linkId,{isActive})});
       return updated;

@@ -47,3 +47,9 @@ Admins create student/professor accounts and manage participants under `/api/v1/
 `20260930150000_exam_participants` adds the `exam_participants` table. It preserves existing course-based exam access by copying active enrollments for existing exams once. New course enrollment alone does not grant exam access: student exam listing, details, starting either exam type, and question-file access require an explicit exam participant record. Assignment also creates/reactivates the course enrollment required by the existing attempt schema. Removing an exam participant leaves course history intact and is refused after any attempt has started.
 
 Run `node --import tsx scripts/verify-exam-assignments.ts` against a development database containing an admin, a professor, and two students to verify the full flow. Verification data is rolled back.
+
+## Professor grade changes and descriptive files
+
+`PUT /api/v1/attempts/:attemptId/grade` allows the exam's assigned professor to create or update a score for submitted/auto-submitted attempts of either exam type, including published grades. Scores must remain between zero and the exam maximum. Published grades stay published; score changes create grade revision records and are immediately visible to the student without an objection or republication.
+
+When creating a descriptive exam, the professor can upload a PDF question file (up to 5 MiB) on the creation form or later in the draft details. Students download question files during the exam window, upload one to five PDF/JPEG/PNG answer files of up to 5 MiB each, then submit their answer sheet. The professor can download submitted files and enter or revise the score. `scripts/verify-exam-assignments.ts` also checks these flows with in-memory file storage and a database transaction rolled back after verification.

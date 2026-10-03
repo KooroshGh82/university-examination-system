@@ -13,7 +13,7 @@ export const authController: Record<string, RequestHandler> = {
   },
   refresh: async (req,res) => {
     const raw = req.cookies?.[cookieName];
-    if (typeof raw !== 'string') throw new AppError(401, 'INVALID_REFRESH', 'Refresh cookie required');
+    if (typeof raw !== 'string') throw new AppError(401, 'INVALID_REFRESH', 'لطفاً دوباره وارد حساب خود شوید.');
     const { refreshToken, ...data } = await authService.refresh(raw);
     res.cookie(cookieName, refreshToken, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 }); res.json({ data });
   },
@@ -22,7 +22,7 @@ export const authController: Record<string, RequestHandler> = {
     const bearer = req.header('authorization');
     let sid: string | undefined;
     if (bearer?.startsWith('Bearer ')) { try { sid = verifyAccess(bearer.slice(7)).sid; } catch { /* cookie may still authorize */ } }
-    if (!raw && !sid) throw new AppError(401, 'UNAUTHENTICATED', 'Session required');
+    if (!raw && !sid) throw new AppError(401, 'UNAUTHENTICATED', 'لطفاً ابتدا وارد حساب خود شوید.');
     await authService.logout(raw, sid);
     res.clearCookie(cookieName, cookieOptions); res.sendStatus(204);
   },

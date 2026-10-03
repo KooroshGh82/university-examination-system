@@ -24,7 +24,7 @@ export function verifyAccess(token: string): JwtPayload {
     const claims = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'], issuer: env.JWT_ISSUER, audience: env.JWT_AUDIENCE });
     if (typeof claims === 'string' || typeof claims.sub !== 'string' || typeof claims.sid !== 'string' || typeof claims.role !== 'string') throw new Error('Invalid claims');
     return claims;
-  } catch { throw new AppError(401, 'UNAUTHENTICATED', 'Invalid or expired access token'); }
+  } catch { throw new AppError(401, 'UNAUTHENTICATED', 'نشست شما منقضی شده است؛ دوباره وارد شوید.'); }
 }
 export const authService = {
   async changePassword(user: User, sid: string, currentPassword: string, newPassword: string) {
@@ -43,7 +43,7 @@ export const authService = {
     const dummy = '$argon2id$v=19$m=65536,t=3,p=1$F5MZXaD8o7Pf/nbHPwV2qw$AsapZWXtWhB3vAFAdpDzrYPWPtuqvCXIPaLZH7SIIUs';
     let valid = false;
     try { valid = await argon2.verify(u?.passwordHash ?? dummy, password); } catch { valid = false; }
-    if (!u || !valid || !u.isActive || !hasProfile(u)) throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid credentials');
+    if (!u || !valid || !u.isActive || !hasProfile(u)) throw new AppError(401, 'INVALID_CREDENTIALS', 'کد یا گذرواژه واردشده صحیح نیست.');
     if (argon2.needsRehash(u.passwordHash, { memoryCost: 65536, timeCost: 3, parallelism: 1 })) {
       await prisma.user.update({ where: { id: u.id }, data: { passwordHash: await hashPassword(password) } });
     }
@@ -53,26 +53,26 @@ export const authService = {
   },
   async refresh(raw: string) {
     const match = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([A-Za-z0-9_-]{64})$/i.exec(raw);
-    if (!match) throw new AppError(401, 'INVALID_REFRESH', 'Invalid refresh token');
+    if (!match) throw new AppError(401, 'INVALID_REFRESH', 'نشست شما معتبر نیست؛ دوباره وارد شوید.');
     const sid = match[1]!;
     const nextToken = formatToken(sid, newSecret()), oldHash = tokenHash(raw);
     const result = await prisma.$transaction(async tx => {
       const s = await tx.authSession.findUnique({ where: { id: sid } });
-      if (!s || s.revokedAt || s.expiresAt <= new Date()) throw new AppError(401, 'INVALID_REFRESH', 'Invalid refresh token');
+      if (!s || s.revokedAt || s.expiresAt <= new Date()) throw new AppError(401, 'INVALID_REFRESH', 'نشست شما معتبر نیست؛ دوباره وارد شوید.');
       if (s.tokenHash !== oldHash) {
         if (s.previousTokenHash === oldHash) {
           await tx.authSession.update({ where: { id: sid }, data: { revokedAt: new Date() } });
           return { replay: true as const };
         }
-        throw new AppError(401, 'INVALID_REFRESH', 'Invalid refresh token');
+        throw new AppError(401, 'INVALID_REFRESH', 'نشست شما معتبر نیست؛ دوباره وارد شوید.');
       }
       const changed = await tx.authSession.updateMany({ where: { id: sid, tokenHash: oldHash, revokedAt: null, expiresAt: { gt: new Date() } }, data: { previousTokenHash: oldHash, tokenHash: tokenHash(nextToken) } });
-      if (changed.count !== 1) throw new AppError(401, 'INVALID_REFRESH', 'Invalid refresh token');
+      if (changed.count !== 1) throw new AppError(401, 'INVALID_REFRESH', 'نشست شما معتبر نیست؛ دوباره وارد شوید.');
       const u = await tx.user.findUnique({ where: { id: s.userId }, include: { student: true, professor: true } });
-      if (!u || !u.isActive || !hasProfile(u)) throw new AppError(401, 'INVALID_REFRESH', 'Invalid refresh token');
+      if (!u || !u.isActive || !hasProfile(u)) throw new AppError(401, 'INVALID_REFRESH', 'نشست شما معتبر نیست؛ دوباره وارد شوید.');
       return { replay: false as const, accessToken: accessToken(u, sid), expiresIn: ACCESS_SECONDS, user: publicUser(u), refreshToken: nextToken };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-    if (result.replay) throw new AppError(401, 'REPLAY_DETECTED', 'Refresh token reuse detected');
+    if (result.replay) throw new AppError(401, 'REPLAY_DETECTED', 'نشست شما به پایان رسیده است؛ دوباره وارد شوید.');
     return result;
   },
   async logout(raw?: string, sidFromAccess?: string) {
@@ -85,7 +85,7 @@ export const authService = {
   async getActiveUser(id: string, sid: string) {
     const [u, session] = await Promise.all([authRepository.findById(id), authRepository.findSession(sid)]);
     if (!u || !u.isActive || !hasProfile(u) || !session || session.userId !== id || session.revokedAt || session.expiresAt <= new Date())
-      throw new AppError(401, 'UNAUTHENTICATED', 'Session is no longer active');
+      throw new AppError(401, 'UNAUTHENTICATED', 'نشست شما به پایان رسیده است؛ دوباره وارد شوید.');
     return u;
   }
 };

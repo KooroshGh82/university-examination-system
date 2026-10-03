@@ -33,9 +33,9 @@ app.use(express.json({ limit: '32kb' })); app.use(cookieParser());
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', authenticate, (req, _res, next) => {
   if (req.auth!.user.role === 'ADMIN' && !(req.path.startsWith('/admin/') || (req.method === 'POST' && ['/students', '/professors'].includes(req.path))))
-    return next(new AppError(403, 'FORBIDDEN', 'Admin can only manage accounts and exam participants'));
+    return next(new AppError(403, 'FORBIDDEN', 'مدیر فقط می‌تواند حساب‌ها و دانشجویان آزمون را مدیریت کند.'));
   next();
 }); app.use('/api/v1/admin', adminRoutes); app.use('/api/v1', coursesRoutes); app.use('/api/v1', examsRoutes); app.use('/api/v1', submissionsRoutes); app.use('/api/v1', descriptiveRoutes); app.use('/api/v1', filesRoutes); app.use('/api/v1', gradesRoutes); app.use('/api/v1', objectionsRoutes); app.use('/api/v1', usersRoutes);
-app.use((_req,res) => { res.status(404).json({ error: { code:'NOT_FOUND',message:'Route not found' } }); });
+app.use((_req,res) => { res.status(404).json({ error: { code:'NOT_FOUND',message:'صفحه یا مسیر مورد نظر یافت نشد.' } }); });
 app.use(errorHandler);
 export default app;
