@@ -1,2 +1,42 @@
-'use client';import {UserAvatar} from '@/components/app-brand';import {ChangePassword} from '@/components/change-password';import {api} from '@/lib/api';import {useLoad} from '@/lib/use-load';import {Heading,State} from '@/components/shell';
-export default function Profile(){const {data,loading,error,reload}=useLoad(api.me);return <><Heading eyebrow="پنل دانشجو / پروفایل" title="پروفایل دانشجو" description="اطلاعات حساب دانشگاهی شما"/><State loading={loading} error={error} retry={reload} empty={!data}><section className="card max-w-2xl p-7"><div className="mb-7"><UserAvatar large/></div>{[['نام و نام خانوادگی',data?.fullName],['کد دانشجویی',data?.universityId],['ایمیل',data?.email||'ثبت نشده'],['نقش','دانشجو']].map(([label,value])=><div className="row mobile-stack" key={label}><span className="muted">{label}</span><strong dir={label==='ایمیل'?'ltr':undefined}>{value}</strong></div>)}<p className="mt-6 text-sm muted">تغییر این اطلاعات از طریق مدیریت دانشگاه انجام می‌شود.</p></section><ChangePassword/></State></>}
+"use client";
+import { UserAvatar } from "@/components/app-brand";
+import { ChangePassword } from "@/components/change-password";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/use-load";
+import { Heading, State } from "@/components/shell";
+export default function Profile() {
+  const { data, loading, error, reload } = useLoad(api.me);
+  return (
+    <>
+      <Heading
+        eyebrow="پنل دانشجو / پروفایل"
+        title="پروفایل دانشجو"
+        description="اطلاعات حساب دانشگاهی شما"
+      />
+      <State loading={loading} error={error} retry={reload} empty={!data}>
+        <section className="card max-w-2xl p-7">
+          <div className="mb-7">
+            <UserAvatar large />
+          </div>
+          {[
+            ["نام و نام خانوادگی", data?.fullName],
+            ["کد دانشجویی", data?.universityId],
+            ["ایمیل", data?.email || "ثبت نشده"],
+            ["نقش", "دانشجو"],
+          ].map(([label, value]) => (
+            <div className="row mobile-stack" key={label}>
+              <span className="muted">{label}</span>
+              <strong dir={label === "ایمیل" ? "ltr" : undefined}>
+                {value}
+              </strong>
+            </div>
+          ))}
+          <p className="mt-6 text-sm muted">
+            تغییر این اطلاعات از طریق مدیریت دانشگاه انجام می‌شود.
+          </p>
+        </section>
+        <ChangePassword />
+      </State>
+    </>
+  );
+}

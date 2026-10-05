@@ -1,3 +1,202 @@
-'use client';import Link from 'next/link';import {api} from '@/lib/api';import {useLoad} from '@/lib/use-load';import {dateFa,num,statusFa} from '@/lib/format';import {Heading,State} from '@/components/shell';import {ExamRow,GradeChart} from '@/components/student-data';import type {Exam,Attempt,Grade,Course,Objection} from '@/lib/types';
-type Data={exams:Exam[];attempts:Attempt[];grades:Grade[];courses:Course[];objections:Objection[]};async function load():Promise<Data>{const [exams,attempts,grades,links]=await Promise.all([api.exams(),api.attempts(),api.grades(),api.courses()]);const objections=(await Promise.all(grades.map(g=>api.objections(g.id).catch(()=>[])))).flat();return {exams,attempts,grades,courses:links.map(x=>x.course),objections}}
-export default function Dashboard(){const {data,loading,error,reload}=useLoad(load);const now=Date.now(),exams=data?.exams||[],attempts=data?.attempts||[],grades=data?.grades||[],courses=data?.courses||[];const attempt=(id:string)=>attempts.find(a=>a.examId===id);const upcoming=exams.filter(e=>new Date(e.startsAt).getTime()>now).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));const active=exams.filter(e=>new Date(e.startsAt).getTime()<=now&&new Date(e.endsAt).getTime()>now&&!attempt(e.id)||attempt(e.id)?.status==='IN_PROGRESS');const completed=exams.filter(e=>attempt(e.id)&&attempt(e.id)?.status!=='IN_PROGRESS');return <><Heading eyebrow="پنل دانشجو / داشبورد" title="داشبورد دانشجو" description="برنامه آزمون‌ها، پاسخ‌نامه‌ها و نتایج خود را دنبال کنید."/><State loading={loading} error={error} retry={reload} empty={!data} ><section className="card flex flex-wrap items-center justify-between gap-6 overflow-hidden bg-[#102c47] p-7 text-white"><div><p className="text-[#6de0ca]">آزمون‌های شما</p><h2 className="mt-2 text-2xl font-black">{active.length?'آزمون فعال دارید':'برای آزمون بعدی آماده شوید'}</h2><p className="mt-3 text-sm text-[#c4d7e3]">{active[0]?`${active[0].titleFa} • پایان ${dateFa(active[0].endsAt)}`:upcoming[0]?`${upcoming[0].titleFa} • شروع ${dateFa(upcoming[0].startsAt)}`:'آزمون برنامه‌ریزی‌شده‌ای وجود ندارد.'}</p></div><Link className="btn border border-[#72d9c7] bg-[#2dd2b0] text-[#102c47]" href={active[0]?`/student/exams/${active[0].id}`:'/student/exams'}>{active[0]?'ورود به آزمون':'مشاهده آزمون‌ها'}</Link></section><div className="grid gap-4 md:grid-cols-3">{[['آزمون‌های آینده',upcoming.length],['آزمون‌های فعال',active.length],['آزمون‌های تکمیل‌شده',completed.length]].map(([label,n])=><div className="card p-6" key={label}><p className="muted">{label}</p><strong className="mt-3 block text-3xl text-[var(--accent)]">{num(n)}</strong></div>)}</div><div className="grid gap-5 lg:grid-cols-2"><section className="card p-6"><div className="flex justify-between"><h2 className="section-title">آزمون‌های فعال</h2><Link className="link text-sm" href="/student/exams">همه آزمون‌ها</Link></div>{active.length?active.slice(0,3).map(e=><ExamRow key={e.id} exam={e} attempt={attempt(e.id)} course={courses.find(c=>c.id===e.courseId)}/>):<p className="mt-5 muted">در حال حاضر آزمون فعالی ندارید.</p>}</section><section className="card p-6"><h2 className="section-title">آزمون‌های پیش رو</h2>{upcoming.length?upcoming.slice(0,3).map(e=><ExamRow key={e.id} exam={e} course={courses.find(c=>c.id===e.courseId)}/>):<p className="mt-5 muted">آزمون آینده‌ای ثبت نشده است.</p>}</section></div><div className="grid gap-5 lg:grid-cols-2"><section className="card p-6"><div className="flex justify-between"><h2 className="section-title">وضعیت پاسخ‌نامه‌ها</h2><Link className="link text-sm" href="/student/submissions">مشاهده همه</Link></div>{attempts.length?attempts.slice(0,4).map(a=><div className="row" key={a.id}><span>{exams.find(e=>e.id===a.examId)?.titleFa||'آزمون'}</span><span className="badge badge-muted">{statusFa(a.status)}</span></div>):<p className="mt-5 muted">هنوز پاسخی ثبت نشده است.</p>}</section><section className="card p-6"><div className="flex justify-between"><h2 className="section-title">نمرات و اعتراض‌ها</h2><Link className="link text-sm" href="/student/grades">مشاهده نمرات</Link></div>{grades.length?grades.slice(0,4).map(g=>{const a=attempts.find(a=>a.id===g.attemptId),e=exams.find(e=>e.id===a?.examId);return <div className="row" key={g.id}><span>{e?.titleFa||'آزمون'}</span><strong>{num(g.score)} {e&&`/ ${num(e.maxPoints)}`}</strong></div>}):<p className="mt-5 muted">هنوز نمره‌ای منتشر نشده است.</p>}<p className="mt-4 text-sm muted">اعتراض‌های ثبت‌شده: {num(data?.objections.length||0)}</p></section></div><GradeChart grades={grades} attempts={attempts} exams={exams} courses={courses}/></State></>}
+"use client";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/use-load";
+import { dateFa, num, statusFa } from "@/lib/format";
+import { Heading, State } from "@/components/shell";
+import { ExamRow, GradeChart } from "@/components/student-data";
+import type { Exam, Attempt, Grade, Course, Objection } from "@/lib/types";
+type Data = {
+  exams: Exam[];
+  attempts: Attempt[];
+  grades: Grade[];
+  courses: Course[];
+  objections: Objection[];
+};
+async function load(): Promise<Data> {
+  const [exams, attempts, grades, links] = await Promise.all([
+    api.exams(),
+    api.attempts(),
+    api.grades(),
+    api.courses(),
+  ]);
+  const objections = (
+    await Promise.all(grades.map((g) => api.objections(g.id).catch(() => [])))
+  ).flat();
+  return {
+    exams,
+    attempts,
+    grades,
+    courses: links.map((x) => x.course),
+    objections,
+  };
+}
+export default function Dashboard() {
+  const { data, loading, error, reload } = useLoad(load);
+  const now = Date.now(),
+    exams = data?.exams || [],
+    attempts = data?.attempts || [],
+    grades = data?.grades || [],
+    courses = data?.courses || [];
+  const attempt = (id: string) => attempts.find((a) => a.examId === id);
+  const upcoming = exams
+    .filter((e) => new Date(e.startsAt).getTime() > now)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const active = exams.filter(
+    (e) =>
+      (new Date(e.startsAt).getTime() <= now &&
+        new Date(e.endsAt).getTime() > now &&
+        !attempt(e.id)) ||
+      attempt(e.id)?.status === "IN_PROGRESS",
+  );
+  const completed = exams.filter(
+    (e) => attempt(e.id) && attempt(e.id)?.status !== "IN_PROGRESS",
+  );
+  return (
+    <>
+      <Heading
+        eyebrow="پنل دانشجو / داشبورد"
+        title="داشبورد دانشجو"
+        description="برنامه آزمون‌ها، پاسخ‌نامه‌ها و نتایج خود را دنبال کنید."
+      />
+      <State loading={loading} error={error} retry={reload} empty={!data}>
+        <section className="card flex flex-wrap items-center justify-between gap-6 overflow-hidden bg-[#102c47] p-7 text-white">
+          <div>
+            <p className="text-[#6de0ca]">آزمون‌های شما</p>
+            <h2 className="mt-2 text-2xl font-black">
+              {active.length
+                ? "آزمون فعال دارید"
+                : "برای آزمون بعدی آماده شوید"}
+            </h2>
+            <p className="mt-3 text-sm text-[#c4d7e3]">
+              {active[0]
+                ? `${active[0].titleFa} • پایان ${dateFa(active[0].endsAt)}`
+                : upcoming[0]
+                  ? `${upcoming[0].titleFa} • شروع ${dateFa(upcoming[0].startsAt)}`
+                  : "آزمون برنامه‌ریزی‌شده‌ای وجود ندارد."}
+            </p>
+          </div>
+          <Link
+            className="btn border border-[#72d9c7] bg-[#2dd2b0] text-[#102c47]"
+            href={
+              active[0] ? `/student/exams/${active[0].id}` : "/student/exams"
+            }
+          >
+            {active[0] ? "ورود به آزمون" : "مشاهده آزمون‌ها"}
+          </Link>
+        </section>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            ["آزمون‌های آینده", upcoming.length],
+            ["آزمون‌های فعال", active.length],
+            ["آزمون‌های تکمیل‌شده", completed.length],
+          ].map(([label, n]) => (
+            <div className="card p-6" key={label}>
+              <p className="muted">{label}</p>
+              <strong className="mt-3 block text-3xl text-[var(--accent)]">
+                {num(n)}
+              </strong>
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className="card p-6">
+            <div className="flex justify-between">
+              <h2 className="section-title">آزمون‌های فعال</h2>
+              <Link className="link text-sm" href="/student/exams">
+                همه آزمون‌ها
+              </Link>
+            </div>
+            {active.length ? (
+              active
+                .slice(0, 3)
+                .map((e) => (
+                  <ExamRow
+                    key={e.id}
+                    exam={e}
+                    attempt={attempt(e.id)}
+                    course={courses.find((c) => c.id === e.courseId)}
+                  />
+                ))
+            ) : (
+              <p className="mt-5 muted">در حال حاضر آزمون فعالی ندارید.</p>
+            )}
+          </section>
+          <section className="card p-6">
+            <h2 className="section-title">آزمون‌های پیش رو</h2>
+            {upcoming.length ? (
+              upcoming
+                .slice(0, 3)
+                .map((e) => (
+                  <ExamRow
+                    key={e.id}
+                    exam={e}
+                    course={courses.find((c) => c.id === e.courseId)}
+                  />
+                ))
+            ) : (
+              <p className="mt-5 muted">آزمون آینده‌ای ثبت نشده است.</p>
+            )}
+          </section>
+        </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className="card p-6">
+            <div className="flex justify-between">
+              <h2 className="section-title">وضعیت پاسخ‌نامه‌ها</h2>
+              <Link className="link text-sm" href="/student/submissions">
+                مشاهده همه
+              </Link>
+            </div>
+            {attempts.length ? (
+              attempts.slice(0, 4).map((a) => (
+                <div className="row" key={a.id}>
+                  <span>
+                    {exams.find((e) => e.id === a.examId)?.titleFa || "آزمون"}
+                  </span>
+                  <span className="badge badge-muted">
+                    {statusFa(a.status)}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="mt-5 muted">هنوز پاسخی ثبت نشده است.</p>
+            )}
+          </section>
+          <section className="card p-6">
+            <div className="flex justify-between">
+              <h2 className="section-title">نمرات و اعتراض‌ها</h2>
+              <Link className="link text-sm" href="/student/grades">
+                مشاهده نمرات
+              </Link>
+            </div>
+            {grades.length ? (
+              grades.slice(0, 4).map((g) => {
+                const a = attempts.find((a) => a.id === g.attemptId),
+                  e = exams.find((e) => e.id === a?.examId);
+                return (
+                  <div className="row" key={g.id}>
+                    <span>{e?.titleFa || "آزمون"}</span>
+                    <strong>
+                      {num(g.score)} {e && `/ ${num(e.maxPoints)}`}
+                    </strong>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="mt-5 muted">هنوز نمره‌ای منتشر نشده است.</p>
+            )}
+            <p className="mt-4 text-sm muted">
+              اعتراض‌های ثبت‌شده: {num(data?.objections.length || 0)}
+            </p>
+          </section>
+        </div>
+        <GradeChart
+          grades={grades}
+          attempts={attempts}
+          exams={exams}
+          courses={courses}
+        />
+      </State>
+    </>
+  );
+}
