@@ -1,2 +1,48 @@
-'use client';import Link from 'next/link';import {professorApi} from '@/lib/api';import {useLoad} from '@/lib/use-load';import {Heading,State} from '@/components/shell';import {ProfessorExamRow} from '@/components/professor-rows';
-export default function Exams(){const {data,loading,error,reload}=useLoad(async()=>{const [links,exams]=await Promise.all([professorApi.courses(),professorApi.exams()]);return {links,exams}});return <><Heading eyebrow="پنل استاد / آزمون‌ها" title="مدیریت آزمون‌ها" description="ساخت، آماده‌سازی و انتشار آزمون‌های درس‌های تخصیص‌یافته" action={data?.links.some(x=>x.isActive)&&<Link className="btn btn-primary" href="/professor/exams/create">ایجاد آزمون</Link>}/><State loading={loading} error={error} retry={reload} empty={!data}><section className="card p-6">{data?.exams.length?data.exams.map(e=><ProfessorExamRow key={e.id} exam={e} course={data.links.find(x=>x.course.id===e.courseId)?.course}/>):<p className="muted">آزمونی وجود ندارد.</p>}</section></State></>}
+"use client";
+import Link from "next/link";
+import { professorApi } from "@/lib/api";
+import { useLoad } from "@/lib/use-load";
+import { Heading, State } from "@/components/shell";
+import { ProfessorExamRow } from "@/components/professor-rows";
+export default function Exams() {
+  const { data, loading, error, reload } = useLoad(async () => {
+    const [links, exams] = await Promise.all([
+      professorApi.courses(),
+      professorApi.exams(),
+    ]);
+    return { links, exams };
+  });
+  return (
+    <>
+      <Heading
+        eyebrow="پنل استاد / آزمون‌ها"
+        title="مدیریت آزمون‌ها"
+        description="ساخت، آماده‌سازی و انتشار آزمون‌های درس‌های تخصیص‌یافته"
+        action={
+          data?.links.some((x) => x.isActive) && (
+            <Link className="btn btn-primary" href="/professor/exams/create">
+              ایجاد آزمون
+            </Link>
+          )
+        }
+      />
+      <State loading={loading} error={error} retry={reload} empty={!data}>
+        <section className="card p-6">
+          {data?.exams.length ? (
+            data.exams.map((e) => (
+              <ProfessorExamRow
+                key={e.id}
+                exam={e}
+                course={
+                  data.links.find((x) => x.course.id === e.courseId)?.course
+                }
+              />
+            ))
+          ) : (
+            <p className="muted">آزمونی وجود ندارد.</p>
+          )}
+        </section>
+      </State>
+    </>
+  );
+}

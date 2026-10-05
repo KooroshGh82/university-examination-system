@@ -1,2 +1,179 @@
-'use client';import {useParams} from 'next/navigation';import Link from 'next/link';import {useState} from 'react';import {professorApi} from '@/lib/api';import {useLoad} from '@/lib/use-load';import {dateFa,message,num,statusFa,studentLabel} from '@/lib/format';import {Heading,State} from '@/components/shell';
-export default function Review(){const {id}=useParams<{id:string}>(),[response,setResponse]=useState(''),[change,setChange]=useState(false),[score,setScore]=useState(''),[busy,setBusy]=useState(false),[actionError,setActionError]=useState('');const {data,loading,error,reload}=useLoad(async()=>{const [objection,grades,attempts,exams,links]=await Promise.all([professorApi.objection(id),professorApi.grades(),professorApi.attempts(),professorApi.exams(),professorApi.courses()]);const grade=grades.find(g=>g.id===objection.gradeId),attempt=attempts.find(a=>a.id===grade?.attemptId),exam=exams.find(e=>e.id===attempt?.examId),link=links.find(x=>x.course.id===exam?.courseId);if(!grade||!attempt||!exam||!link)throw new Error('جزئیات این اعتراض برای شما در دسترس نیست.');return {objection,grade,attempt,exam,link}},[id]);async function act(fn:()=>Promise<unknown>){setBusy(true);setActionError('');try{await fn();reload()}catch(e){setActionError(message(e))}finally{setBusy(false)}}const o=data?.objection,canManage=!!data?.link.isActive;return <><Heading eyebrow="اعتراض‌ها / بررسی" title="بررسی اعتراض نمره" description={data?.exam.titleFa} action={<Link href="/professor/objections" className="btn btn-ghost">بازگشت</Link>}/><State loading={loading} error={error} retry={reload} empty={!data}><div className="grid gap-5 lg:grid-cols-[2fr_1fr]"><section className="card space-y-5 p-6"><div className="flex items-center gap-3"><h2 className="section-title">درخواست دانشجو</h2><span className="badge">{statusFa(o?.status||'')}</span></div><div className="rounded-xl bg-[var(--surface-tint)] p-4"><p className="text-xs muted">دانشجوی درخواست‌دهنده</p><p className="mt-1 font-bold">{studentLabel(o?.student)}</p></div><p className="text-sm muted">دور {num(o?.round||0)} • {o&&dateFa(o.submittedAt)}</p><p className="whitespace-pre-wrap leading-8">{o?.reasonFa}</p>{o?.decision&&<div className="rounded-xl bg-[var(--surface-info)] p-4"><strong>پاسخ ثبت‌شده</strong><p className="mt-2 whitespace-pre-wrap">{o.decision.responseFa}</p><p className="mt-2 text-sm muted">{dateFa(o.decision.decidedAt)}</p></div>}{canManage&&o?.status==='SUBMITTED'&&<button className="btn btn-primary" disabled={busy} onClick={()=>act(()=>professorApi.reviewObjection(id))}>شروع بررسی</button>}{canManage&&o?.status==='UNDER_REVIEW'&&<form onSubmit={e=>{e.preventDefault();if(window.confirm(change?'نمره اصلاح و پاسخ ثبت شود؟':'نمره فعلی تأیید و پاسخ ثبت شود؟'))act(()=>professorApi.decideObjection(id,{responseFa:response.trim(),...(change?{newScore:score}:{})}))}} className="space-y-4"><label className="block">پاسخ به دانشجو<textarea className="field mt-2 min-h-32" required value={response} onChange={e=>setResponse(e.target.value)}/></label><label className="flex items-center gap-2"><input type="checkbox" checked={change} onChange={e=>setChange(e.target.checked)}/>اصلاح نمره</label>{change&&<label className="block">نمره جدید<input className="field mt-2 max-w-48" inputMode="decimal" required value={score} onChange={e=>setScore(e.target.value)}/></label>}<button className="btn btn-primary" disabled={busy||!response.trim()}>ثبت تصمیم و بستن اعتراض</button></form>}{actionError&&<p role="alert" className="text-[var(--danger-ink)]">{actionError}</p>}</section><aside className="card h-fit space-y-3 p-6"><h2 className="section-title">نمره فعلی</h2><strong className="text-2xl text-[var(--accent)]">{num(data?.grade.score||0)} / {num(data?.exam.maxPoints||0)}</strong><p className="text-sm muted">انتشار: {data&&dateFa(data.grade.publishedAt)}</p><Link href={`/professor/submissions/${data?.attempt.id}`} className="btn btn-outline w-full">مشاهده پاسخ‌نامه</Link><p className="text-sm leading-7 muted">سرور مجوز، وضعیت اعتراض و اعتبار نمره جدید را بررسی و تاریخچه تغییر را نگهداری می‌کند.</p></aside></div></State></>}
+"use client";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useState } from "react";
+import { professorApi } from "@/lib/api";
+import { useLoad } from "@/lib/use-load";
+import { dateFa, message, num, statusFa, studentLabel } from "@/lib/format";
+import { Heading, State } from "@/components/shell";
+export default function Review() {
+  const { id } = useParams<{ id: string }>(),
+    [response, setResponse] = useState(""),
+    [change, setChange] = useState(false),
+    [score, setScore] = useState(""),
+    [busy, setBusy] = useState(false),
+    [actionError, setActionError] = useState("");
+  const { data, loading, error, reload } = useLoad(async () => {
+    const [objection, grades, attempts, exams, links] = await Promise.all([
+      professorApi.objection(id),
+      professorApi.grades(),
+      professorApi.attempts(),
+      professorApi.exams(),
+      professorApi.courses(),
+    ]);
+    const grade = grades.find((g) => g.id === objection.gradeId),
+      attempt = attempts.find((a) => a.id === grade?.attemptId),
+      exam = exams.find((e) => e.id === attempt?.examId),
+      link = links.find((x) => x.course.id === exam?.courseId);
+    if (!grade || !attempt || !exam || !link)
+      throw new Error("جزئیات این اعتراض برای شما در دسترس نیست.");
+    return { objection, grade, attempt, exam, link };
+  }, [id]);
+  async function act(fn: () => Promise<unknown>) {
+    setBusy(true);
+    setActionError("");
+    try {
+      await fn();
+      reload();
+    } catch (e) {
+      setActionError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const o = data?.objection,
+    canManage = !!data?.link.isActive;
+  return (
+    <>
+      <Heading
+        eyebrow="اعتراض‌ها / بررسی"
+        title="بررسی اعتراض نمره"
+        description={data?.exam.titleFa}
+        action={
+          <Link href="/professor/objections" className="btn btn-ghost">
+            بازگشت
+          </Link>
+        }
+      />
+      <State loading={loading} error={error} retry={reload} empty={!data}>
+        <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
+          <section className="card space-y-5 p-6">
+            <div className="flex items-center gap-3">
+              <h2 className="section-title">درخواست دانشجو</h2>
+              <span className="badge">{statusFa(o?.status || "")}</span>
+            </div>
+            <div className="rounded-xl bg-[var(--surface-tint)] p-4">
+              <p className="text-xs muted">دانشجوی درخواست‌دهنده</p>
+              <p className="mt-1 font-bold">{studentLabel(o?.student)}</p>
+            </div>
+            <p className="text-sm muted">
+              دور {num(o?.round || 0)} • {o && dateFa(o.submittedAt)}
+            </p>
+            <p className="whitespace-pre-wrap leading-8">{o?.reasonFa}</p>
+            {o?.decision && (
+              <div className="rounded-xl bg-[var(--surface-info)] p-4">
+                <strong>پاسخ ثبت‌شده</strong>
+                <p className="mt-2 whitespace-pre-wrap">
+                  {o.decision.responseFa}
+                </p>
+                <p className="mt-2 text-sm muted">
+                  {dateFa(o.decision.decidedAt)}
+                </p>
+              </div>
+            )}
+            {canManage && o?.status === "SUBMITTED" && (
+              <button
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => act(() => professorApi.reviewObjection(id))}
+              >
+                شروع بررسی
+              </button>
+            )}
+            {canManage && o?.status === "UNDER_REVIEW" && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (
+                    window.confirm(
+                      change
+                        ? "نمره اصلاح و پاسخ ثبت شود؟"
+                        : "نمره فعلی تأیید و پاسخ ثبت شود؟",
+                    )
+                  )
+                    act(() =>
+                      professorApi.decideObjection(id, {
+                        responseFa: response.trim(),
+                        ...(change ? { newScore: score } : {}),
+                      }),
+                    );
+                }}
+                className="space-y-4"
+              >
+                <label className="block">
+                  پاسخ به دانشجو
+                  <textarea
+                    className="field mt-2 min-h-32"
+                    required
+                    value={response}
+                    onChange={(e) => setResponse(e.target.value)}
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={change}
+                    onChange={(e) => setChange(e.target.checked)}
+                  />
+                  اصلاح نمره
+                </label>
+                {change && (
+                  <label className="block">
+                    نمره جدید
+                    <input
+                      className="field mt-2 max-w-48"
+                      inputMode="decimal"
+                      required
+                      value={score}
+                      onChange={(e) => setScore(e.target.value)}
+                    />
+                  </label>
+                )}
+                <button
+                  className="btn btn-primary"
+                  disabled={busy || !response.trim()}
+                >
+                  ثبت تصمیم و بستن اعتراض
+                </button>
+              </form>
+            )}
+            {actionError && (
+              <p role="alert" className="text-[var(--danger-ink)]">
+                {actionError}
+              </p>
+            )}
+          </section>
+          <aside className="card h-fit space-y-3 p-6">
+            <h2 className="section-title">نمره فعلی</h2>
+            <strong className="text-2xl text-[var(--accent)]">
+              {num(data?.grade.score || 0)} / {num(data?.exam.maxPoints || 0)}
+            </strong>
+            <p className="text-sm muted">
+              انتشار: {data && dateFa(data.grade.publishedAt)}
+            </p>
+            <Link
+              href={`/professor/submissions/${data?.attempt.id}`}
+              className="btn btn-outline w-full"
+            >
+              مشاهده پاسخ‌نامه
+            </Link>
+            <p className="text-sm leading-7 muted">
+              سرور مجوز، وضعیت اعتراض و اعتبار نمره جدید را بررسی و تاریخچه
+              تغییر را نگهداری می‌کند.
+            </p>
+          </aside>
+        </div>
+      </State>
+    </>
+  );
+}

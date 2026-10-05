@@ -1,15 +1,149 @@
- 'use client';
-import {useState} from 'react';
-import {api} from '@/lib/api';
-import type {User} from '@/lib/types';
-import {message} from '@/lib/format';
-import {AdminExamStudents} from '@/components/admin-exam-students';
-import {Heading} from '@/components/shell';
-const normalizeDigits=(value:string)=>value.replace(/[۰-۹]/g,c=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c))).replace(/[٠-٩]/g,c=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
-export default function Admin(){
- const [role,setRole]=useState<'STUDENT'|'PROFESSOR'>('STUDENT'),[name,setName]=useState(''),[code,setCode]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[created,setCreated]=useState<User|null>(null),[nameError,setNameError]=useState(''),[codeError,setCodeError]=useState('');
- const codeLabel=role==='PROFESSOR'?'کد استاد':'کد دانشجویی';
+"use client";
+import { useState } from "react";
+import { api } from "@/lib/api";
+import type { User } from "@/lib/types";
+import { message } from "@/lib/format";
+import { AdminExamStudents } from "@/components/admin-exam-students";
+import { Heading } from "@/components/shell";
+const normalizeDigits = (value: string) =>
+  value
+    .replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))
+    .replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
+export default function Admin() {
+  const [role, setRole] = useState<"STUDENT" | "PROFESSOR">("STUDENT"),
+    [name, setName] = useState(""),
+    [code, setCode] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [created, setCreated] = useState<User | null>(null),
+    [nameError, setNameError] = useState(""),
+    [codeError, setCodeError] = useState("");
+  const codeLabel = role === "PROFESSOR" ? "کد استاد" : "کد دانشجویی";
 
- async function submit(e:React.FormEvent){e.preventDefault();const invalidName=!/^\p{L}[\p{L}\p{M} '\u200c\u2019-]*$/u.test(name.trim()),invalidCode=!/^[0-9]+$/.test(normalizeDigits(code.trim()));setNameError(invalidName?'نام و نام خانوادگی باید فقط شامل حروف باشد؛ وارد کردن عدد مجاز نیست.':'');setCodeError(invalidCode?`${codeLabel} باید فقط شامل عدد باشد.`:'');setError('');setCreated(null);if(invalidName||invalidCode)return;setBusy(true);setError('');setCreated(null);try{setCreated(await api.createUser(role,name.trim(),code.trim()));setName('');setCode('')}catch(e){setError(message(e))}finally{setBusy(false)}}
- return <div className="min-h-screen"><main className="mx-auto max-w-3xl space-y-7 p-5 lg:p-8"><Heading title="ایجاد حساب دانشگاهی" description="تعریف دانشجو یا استاد با نام و کد اختصاصی"/><form className="card space-y-5 p-7" onSubmit={submit}><label className="block space-y-2"><span>نقش</span><select className="field" value={role} disabled={busy} onChange={e=>{setRole(e.target.value as 'STUDENT'|'PROFESSOR');setCodeError('');setError('');setCreated(null)}}><option value="STUDENT">دانشجو</option><option value="PROFESSOR">استاد</option></select></label><label className="block space-y-2"><span>نام و نام خانوادگی</span><input className="field" required maxLength={200} value={name} disabled={busy} aria-invalid={!!nameError} aria-describedby="new-user-name-hint" onChange={e=>{setName(e.target.value);setNameError('')}}/><small id="new-user-name-hint" className={nameError?'block text-[var(--danger-ink)]':'block muted'}>{nameError||'فقط حروف فارسی یا انگلیسی؛ بدون عدد'}</small></label><label className="block space-y-2"><span>{codeLabel}</span><input className="field" required maxLength={64} value={code} disabled={busy} inputMode="numeric" dir="ltr" aria-invalid={!!codeError} aria-describedby="new-user-code-hint" onChange={e=>{setCode(normalizeDigits(e.target.value));setCodeError('')}}/><small id="new-user-code-hint" className={codeError?'block text-[var(--danger-ink)]':'block muted'}>{codeError||'فقط عدد؛ بدون حروف یا علامت'}</small></label><p className="muted">گذرواژه اولیه همه حساب‌ها <b dir="ltr">123456</b> است. کاربران می‌توانند آن را از پروفایل خود تغییر دهند.</p>{error&&<p role="alert" className="text-[var(--danger-ink)]">{error}</p>}{created&&<p role="status" className="text-[var(--accent)]">حساب {created.role==='STUDENT'?'دانشجو':'استاد'} برای {created.fullName} با شناسه {created.universityId} ایجاد شد.</p>}<button disabled={busy} className="btn btn-primary">{busy?'در حال ایجاد…':'ایجاد حساب'}</button></form><AdminExamStudents/></main></div>;
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const invalidName = !/^\p{L}[\p{L}\p{M} '\u200c\u2019-]*$/u.test(
+        name.trim(),
+      ),
+      invalidCode = !/^[0-9]+$/.test(normalizeDigits(code.trim()));
+    setNameError(
+      invalidName
+        ? "نام و نام خانوادگی باید فقط شامل حروف باشد؛ وارد کردن عدد مجاز نیست."
+        : "",
+    );
+    setCodeError(invalidCode ? `${codeLabel} باید فقط شامل عدد باشد.` : "");
+    setError("");
+    setCreated(null);
+    if (invalidName || invalidCode) return;
+    setBusy(true);
+    setError("");
+    setCreated(null);
+    try {
+      setCreated(await api.createUser(role, name.trim(), code.trim()));
+      setName("");
+      setCode("");
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="min-h-screen">
+      <main className="mx-auto max-w-3xl space-y-7 p-5 lg:p-8">
+        <Heading
+          title="ایجاد حساب دانشگاهی"
+          description="تعریف دانشجو یا استاد با نام و کد اختصاصی"
+        />
+        <form className="card space-y-5 p-7" onSubmit={submit}>
+          <label className="block space-y-2">
+            <span>نقش</span>
+            <select
+              className="field"
+              value={role}
+              disabled={busy}
+              onChange={(e) => {
+                setRole(e.target.value as "STUDENT" | "PROFESSOR");
+                setCodeError("");
+                setError("");
+                setCreated(null);
+              }}
+            >
+              <option value="STUDENT">دانشجو</option>
+              <option value="PROFESSOR">استاد</option>
+            </select>
+          </label>
+          <label className="block space-y-2">
+            <span>نام و نام خانوادگی</span>
+            <input
+              className="field"
+              required
+              maxLength={200}
+              value={name}
+              disabled={busy}
+              aria-invalid={!!nameError}
+              aria-describedby="new-user-name-hint"
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError("");
+              }}
+            />
+            <small
+              id="new-user-name-hint"
+              className={
+                nameError ? "block text-[var(--danger-ink)]" : "block muted"
+              }
+            >
+              {nameError || "فقط حروف فارسی یا انگلیسی؛ بدون عدد"}
+            </small>
+          </label>
+          <label className="block space-y-2">
+            <span>{codeLabel}</span>
+            <input
+              className="field"
+              required
+              maxLength={64}
+              value={code}
+              disabled={busy}
+              inputMode="numeric"
+              dir="ltr"
+              aria-invalid={!!codeError}
+              aria-describedby="new-user-code-hint"
+              onChange={(e) => {
+                setCode(normalizeDigits(e.target.value));
+                setCodeError("");
+              }}
+            />
+            <small
+              id="new-user-code-hint"
+              className={
+                codeError ? "block text-[var(--danger-ink)]" : "block muted"
+              }
+            >
+              {codeError || "فقط عدد؛ بدون حروف یا علامت"}
+            </small>
+          </label>
+          <p className="muted">
+            گذرواژه اولیه همه حساب‌ها <b dir="ltr">123456</b> است. کاربران
+            می‌توانند آن را از پروفایل خود تغییر دهند.
+          </p>
+          {error && (
+            <p role="alert" className="text-[var(--danger-ink)]">
+              {error}
+            </p>
+          )}
+          {created && (
+            <p role="status" className="text-[var(--accent)]">
+              حساب {created.role === "STUDENT" ? "دانشجو" : "استاد"} برای{" "}
+              {created.fullName} با شناسه {created.universityId} ایجاد شد.
+            </p>
+          )}
+          <button disabled={busy} className="btn btn-primary">
+            {busy ? "در حال ایجاد…" : "ایجاد حساب"}
+          </button>
+        </form>
+        <AdminExamStudents />
+      </main>
+    </div>
+  );
 }
