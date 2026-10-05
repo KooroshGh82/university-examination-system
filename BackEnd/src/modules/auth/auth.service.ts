@@ -12,7 +12,7 @@ const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const tokenHash = (token: string) => crypto.createHmac('sha256', env.REFRESH_PEPPER).update(token).digest('hex');
 const newSecret = () => crypto.randomBytes(48).toString('base64url');
 const formatToken = (id: string, secret: string) => `${id}.${secret}`;
-export const publicUser = (u: User) => ({ id: u.id, universityId: u.universityId, email: u.email, fullName: u.fullName, role: u.role, isActive: u.isActive });
+export const publicUser = (u: User) => ({ id: u.id, universityId: u.universityId, email: u.email, fullName: u.fullName, role: u.role, isActive: u.isActive, mustChangePassword: u.mustChangePassword });
 export const hashPassword = (password: string) => argon2.hash(password, { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 1 });
 const hasProfile = (u: {role: UserRole; student: unknown; professor: unknown}) =>
   u.role === 'STUDENT' ? !!u.student && !u.professor : u.role === 'PROFESSOR' ? !!u.professor && !u.student : !u.student && !u.professor;
@@ -32,7 +32,7 @@ export const authService = {
       throw new AppError(400, 'INVALID_PASSWORD', 'گذرواژه فعلی صحیح نیست.');
     const passwordHash = await hashPassword(newPassword);
     await prisma.$transaction(async tx => {
-      const changed = await tx.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { passwordHash } });
+      const changed = await tx.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash }, data: { passwordHash, mustChangePassword: false } });
       if (changed.count !== 1) throw new AppError(409, 'PASSWORD_CHANGED', 'گذرواژه تغییر کرده است؛ دوباره وارد شوید.');
       await tx.authSession.updateMany({ where: { userId: user.id, id: { not: sid }, revokedAt: null }, data: { revokedAt: new Date() } });
     });
@@ -44,6 +44,11 @@ export const authService = {
     let valid = false;
     try { valid = await argon2.verify(u?.passwordHash ?? dummy, password); } catch { valid = false; }
     if (!u || !valid || !u.isActive || !hasProfile(u)) throw new AppError(401, 'INVALID_CREDENTIALS', 'کد یا گذرواژه واردشده صحیح نیست.');
+    // Existing provisioned accounts still using the default must also change it.
+    if (u.role !== 'ADMIN' && password === '123456' && !u.mustChangePassword) {
+      await prisma.user.update({where:{id:u.id},data:{mustChangePassword:true}});
+      u.mustChangePassword=true;
+    }
     if (argon2.needsRehash(u.passwordHash, { memoryCost: 65536, timeCost: 3, parallelism: 1 })) {
       await prisma.user.update({ where: { id: u.id }, data: { passwordHash: await hashPassword(password) } });
     }

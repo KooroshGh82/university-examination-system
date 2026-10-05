@@ -12,7 +12,10 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     const claims = verifyAccess(header.slice(7));
     const user = await authService.getActiveUser(claims.sub!, claims.sid);
     if (claims.role !== user.role) throw new AppError(401, 'UNAUTHENTICATED', 'اطلاعات حساب تغییر کرده است؛ دوباره وارد شوید.');
-    req.auth = { user, sid: claims.sid }; next();
+    req.auth = { user, sid: claims.sid };
+    if(user.mustChangePassword && !(req.baseUrl === '/api/v1/auth' && ['/me','/change-password'].includes(req.path)))
+      throw new AppError(403,'PASSWORD_CHANGE_REQUIRED','برای ادامه، ابتدا گذرواژه اولیه خود را تغییر دهید.');
+    next();
   } catch (e) { next(e); }
 };
 export const requireRole = (...roles: UserRole[]): RequestHandler => (req, _res, next) =>

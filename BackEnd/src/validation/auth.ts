@@ -7,7 +7,7 @@ export const provisionSchema = z.object({
 }).strict();
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(1024),
-  newPassword: z.string().min(6).max(128)
+  newPassword: z.string().min(6).max(128).refine(value=>value!=='123456','گذرواژه جدید نمی‌تواند گذرواژه پیش‌فرض باشد.')
 }).strict().refine(input => input.currentPassword !== input.newPassword, {
   message: 'New password must differ from current password', path: ['newPassword']
 });

@@ -1,4 +1,4 @@
-export type User = { id:string; universityId:string; fullName:string; email?:string|null; role:'STUDENT'|'PROFESSOR'|'ADMIN'; isActive:boolean };
+export type User = { id:string; universityId:string; fullName:string; email?:string|null; role:'STUDENT'|'PROFESSOR'|'ADMIN'; isActive:boolean; mustChangePassword:boolean };
 export type Course = { id:string; code:string; titleFa:string; termCode:string };
 export type Exam = { id:string; courseId:string; titleFa:string; instructionsFa?:string|null; type:'MULTIPLE_CHOICE'|'DESCRIPTIVE'; status:string; startsAt:string; endsAt:string; durationMinutes?:number|null; maxPoints:string };
 export type Question = { attemptQuestionId:string; questionId:string; position:number; promptFa:string; points:string; options:{id:string;position:number;textFa:string}[]; selectedOptionId?:string|null };

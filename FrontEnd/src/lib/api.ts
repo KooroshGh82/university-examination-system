@@ -2,7 +2,7 @@ import {ApiError, type Page, type User, type Course, type Exam, type ExamDetail,
 const root='/api/backend';
 export async function request<T>(path:string, init:RequestInit={}):Promise<T> {
   const response=await fetch(root+path,{...init,credentials:'same-origin',cache:'no-store',headers:{...(init.body instanceof FormData?{}:{'Content-Type':'application/json'}),...init.headers}});
-  if(!response.ok){let e:{error?:{code?:string;message?:string;details?:{field:string;issue:string}[]}}={};try{e=await response.json()}catch{} throw new ApiError(response.status,e.error?.code||'HTTP_ERROR',e.error?.message||'درخواست انجام نشد.',e.error?.details);}
+  if(!response.ok){let e:{error?:{code?:string;message?:string;details?:{field:string;issue:string}[]}}={};try{e=await response.json()}catch{} if(e.error?.code==='PASSWORD_CHANGE_REQUIRED'&&typeof window!=='undefined'&&window.location.pathname!=='/change-password')window.location.replace('/change-password');throw new ApiError(response.status,e.error?.code||'HTTP_ERROR',e.error?.message||'درخواست انجام نشد.',e.error?.details);}
   if(response.status===204)return undefined as T;
   const body=await response.json();return body.data as T;
 }
