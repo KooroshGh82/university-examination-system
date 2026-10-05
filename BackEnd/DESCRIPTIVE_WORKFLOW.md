@@ -22,23 +22,23 @@ The example `.env.example` includes `STORAGE_DIR`. The backend requires PostgreS
 
 ## Endpoints
 
-| Method | URL | Role | Request / result |
-| --- | --- | --- | --- |
-| GET | `/exams?type=DESCRIPTIVE` | Student | Only published exams in actively enrolled courses |
-| POST | `/exams/:examId/question-files` | Assigned professor or admin | multipart `file` PDF, draft exam only, max 5 MiB; 201 file metadata |
-| GET | `/exams/:examId/question-files` | Student, assigned professor, admin | Student must have active enrollment, exam published and currently in window |
-| DELETE | `/exams/:examId/question-files/:fileId` | Assigned professor or admin | Draft only; 204 |
-| GET | `/files/:fileId/download` | Authorized student/professor/admin | Private attachment; 410 after byte purge |
-| POST | `/exams/:examId/attempts` | Student | Start/resume descriptive exam during `[startsAt,endsAt)` with active enrollment; returns attempt, deadline and empty questions array |
-| POST | `/attempts/:attemptId/files` | Student | multipart `file`, one per request; PDF/JPG/JPEG/PNG, <=5 MiB each; max five accepted files |
-| GET | `/attempts/:attemptId/files` | Student or assigned professor | Student own files; professor only after final submission |
-| DELETE | `/attempts/:attemptId/files/:fileId` | Student | Remove own draft file before deadline/finalization; 204 |
-| POST | `/attempts/:attemptId/submit` | Student | Requires 1–5 accepted files before deadline, atomically freezes attempt; repeat returns receipt |
-| GET | `/attempts/:attemptId` | Student, assigned professor | Student own status/files; professor submitted attempt/files and draft grade |
-| GET | `/attempts?examId=...` | Student, assigned professor | Student own attempts including ABSENT; professor finalized submissions only |
-| PUT | `/attempts/:attemptId/grade` | Assigned professor | `{ "score":"16.50", "commentsFa":"Optional feedback" }`; draft only, score 0..exam max |
-| POST | `/grades/:gradeId/publish` | Assigned professor | Publish this student's draft grade once |
-| GET | `/attempts/:attemptId/grade` | Student, assigned professor | Student only after individual publication, including comments; professor sees draft |
+| Method | URL                                     | Role                               | Request / result                                                                                                                     |
+| ------ | --------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/exams?type=DESCRIPTIVE`               | Student                            | Only published exams in actively enrolled courses                                                                                    |
+| POST   | `/exams/:examId/question-files`         | Assigned professor or admin        | multipart `file` PDF, draft exam only, max 5 MiB; 201 file metadata                                                                  |
+| GET    | `/exams/:examId/question-files`         | Student, assigned professor, admin | Student must have active enrollment, exam published and currently in window                                                          |
+| DELETE | `/exams/:examId/question-files/:fileId` | Assigned professor or admin        | Draft only; 204                                                                                                                      |
+| GET    | `/files/:fileId/download`               | Authorized student/professor/admin | Private attachment; 410 after byte purge                                                                                             |
+| POST   | `/exams/:examId/attempts`               | Student                            | Start/resume descriptive exam during `[startsAt,endsAt)` with active enrollment; returns attempt, deadline and empty questions array |
+| POST   | `/attempts/:attemptId/files`            | Student                            | multipart `file`, one per request; PDF/JPG/JPEG/PNG, <=5 MiB each; max five accepted files                                           |
+| GET    | `/attempts/:attemptId/files`            | Student or assigned professor      | Student own files; professor only after final submission                                                                             |
+| DELETE | `/attempts/:attemptId/files/:fileId`    | Student                            | Remove own draft file before deadline/finalization; 204                                                                              |
+| POST   | `/attempts/:attemptId/submit`           | Student                            | Requires 1–5 accepted files before deadline, atomically freezes attempt; repeat returns receipt                                      |
+| GET    | `/attempts/:attemptId`                  | Student, assigned professor        | Student own status/files; professor submitted attempt/files and draft grade                                                          |
+| GET    | `/attempts?examId=...`                  | Student, assigned professor        | Student own attempts including ABSENT; professor finalized submissions only                                                          |
+| PUT    | `/attempts/:attemptId/grade`            | Assigned professor                 | `{ "score":"16.50", "commentsFa":"Optional feedback" }`; draft only, score 0..exam max                                               |
+| POST   | `/grades/:gradeId/publish`              | Assigned professor                 | Publish this student's draft grade once                                                                                              |
+| GET    | `/attempts/:attemptId/grade`            | Student, assigned professor        | Student only after individual publication, including comments; professor sees draft                                                  |
 
 All JSON endpoints use the existing `{data:...}` envelope. Uploaded file bytes are never in JSON. Unknown fields and bad UUIDs are rejected. The server checks actual byte signatures, MIME and extension together; it never derives a storage path from the uploaded filename. Download names are generated from file ID. The object store itself is inaccessible publicly.
 

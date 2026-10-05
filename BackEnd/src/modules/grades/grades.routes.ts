@@ -1,14 +1,43 @@
-import {Router} from 'express';
-import {authenticate,requireRole} from '../../middleware/authenticate.js';
-import {asyncRoute} from '../../middleware/asyncRoute.js';
-import {gradesController as c} from './grades.controller.js';
-const r=Router();r.use(authenticate);
-r.get('/grades/performance',requireRole('STUDENT'),asyncRoute(c.performance!));
-r.get('/courses/:courseId/grade-comparison',requireRole('STUDENT'),asyncRoute(c.comparison!));
-r.get('/courses/:courseId/grades',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.byCourse!));
-r.get('/exams/:examId/grades',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.byExam!));
-r.get('/grades',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.list!));
-r.get('/grades/:gradeId',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.get!));
-r.get('/grades/:gradeId/revisions',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.revisions!));
-r.post('/grades/:gradeId/publish',requireRole('PROFESSOR'),asyncRoute(c.publish!));
+import { Router } from "express";
+import { authenticate, requireRole } from "../../middleware/authenticate.js";
+import { asyncRoute } from "../../middleware/asyncRoute.js";
+import { gradesController as c } from "./grades.controller.js";
+const r = Router();
+r.use(authenticate);
+r.get(
+  "/grades/performance",
+  requireRole("STUDENT"),
+  asyncRoute(c.performance!),
+);
+r.get(
+  "/courses/:courseId/grade-comparison",
+  requireRole("STUDENT"),
+  asyncRoute(c.comparison!),
+);
+r.get(
+  "/courses/:courseId/grades",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.byCourse!),
+);
+r.get(
+  "/exams/:examId/grades",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.byExam!),
+);
+r.get("/grades", requireRole("STUDENT", "PROFESSOR"), asyncRoute(c.list!));
+r.get(
+  "/grades/:gradeId",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.get!),
+);
+r.get(
+  "/grades/:gradeId/revisions",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.revisions!),
+);
+r.post(
+  "/grades/:gradeId/publish",
+  requireRole("PROFESSOR"),
+  asyncRoute(c.publish!),
+);
 export default r;
