@@ -4,16 +4,16 @@ This module extends the authentication, course and exam backend. It uses the exi
 
 ## Endpoints
 
-| Method | URL | Role | Body / response |
-| --- | --- | --- | --- |
-| GET | `/exams?courseId=&type=MULTIPLE_CHOICE` | Student | Previously implemented exam listing; only published exams in actively enrolled courses |
-| POST | `/exams/:examId/attempts` | Student | Start or resume own attempt; returns attempt and shuffled questions/options, with no `isCorrect`. 201 new, 200 resume |
-| GET | `/attempts?examId=&status=&limit=&cursor=` | Student, Professor | Student own submissions; professor only attempts of their active assigned exams, including draft scores |
-| GET | `/attempts/:attemptId` | Student, Professor | Student sees own questions/selections without answer key/score; assigned professor sees selections, key and draft score |
-| PUT | `/attempts/:attemptId/answers/:attemptQuestionId` | Student | `{ "optionId": "UUID" }` save choice, `{ "optionId": null }` clear choice; latest choice replaces prior choice |
-| POST | `/attempts/:attemptId/submit` | Student | No body; freezes answers, scores on server, stores `SUBMITTED` and draft Grade; repeat returns same receipt |
-| GET | `/attempts/:attemptId/grade` | Student, Professor | Professor sees draft/published Grade; student receives 404 until individual publication |
-| POST | `/grades/:gradeId/publish` | Professor | No body; active assigned professor publishes this student's Grade once, returns published score |
+| Method | URL                                               | Role               | Body / response                                                                                                         |
+| ------ | ------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/exams?courseId=&type=MULTIPLE_CHOICE`           | Student            | Previously implemented exam listing; only published exams in actively enrolled courses                                  |
+| POST   | `/exams/:examId/attempts`                         | Student            | Start or resume own attempt; returns attempt and shuffled questions/options, with no `isCorrect`. 201 new, 200 resume   |
+| GET    | `/attempts?examId=&status=&limit=&cursor=`        | Student, Professor | Student own submissions; professor only attempts of their active assigned exams, including draft scores                 |
+| GET    | `/attempts/:attemptId`                            | Student, Professor | Student sees own questions/selections without answer key/score; assigned professor sees selections, key and draft score |
+| PUT    | `/attempts/:attemptId/answers/:attemptQuestionId` | Student            | `{ "optionId": "UUID" }` save choice, `{ "optionId": null }` clear choice; latest choice replaces prior choice          |
+| POST   | `/attempts/:attemptId/submit`                     | Student            | No body; freezes answers, scores on server, stores `SUBMITTED` and draft Grade; repeat returns same receipt             |
+| GET    | `/attempts/:attemptId/grade`                      | Student, Professor | Professor sees draft/published Grade; student receives 404 until individual publication                                 |
+| POST   | `/grades/:gradeId/publish`                        | Professor          | No body; active assigned professor publishes this student's Grade once, returns published score                         |
 
 All routes require JWT authentication and UUID validation. Roles are checked before access; resource ownership and active enrollment/assignment are checked against the database. Another user's attempt yields 404. No client score field is accepted. Question/options are taken from immutable published exam content and the attempt's saved shuffle, with no correct flag in the student projection. Decimal points are summed using Prisma.Decimal. An unanswered question contributes zero.
 

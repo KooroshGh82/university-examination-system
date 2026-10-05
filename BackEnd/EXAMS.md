@@ -11,25 +11,25 @@ This extends the same Express/Prisma backend. It implements exam authoring and v
 
 ## Endpoints
 
-| Method | URL | Role | Request body |
-| --- | --- | --- | --- |
-| POST | `/exams` | Professor, Admin | `{courseId,assignmentId?,titleFa,instructionsFa?,type,startsAt,endsAt,durationMinutes?,maxPoints}`; admin requires `assignmentId`; professor assignment inferred |
-| GET | `/exams?courseId=&type=&status=&limit=&cursor=` | Student, Professor, Admin | List; student receives only authorized published exams |
-| GET | `/exams/:examId` | Student, Professor, Admin | Scoped metadata |
-| PATCH | `/exams/:examId` | Professor, Admin | Draft-only subset `{titleFa?,instructionsFa?,startsAt?,endsAt?,durationMinutes?,maxPoints?}` |
-| DELETE | `/exams/:examId` | Professor, Admin | Draft-only, no attempts/files |
-| POST | `/exams/:examId/publish` | Professor, Admin | No body |
-| POST | `/exams/:examId/close` | Professor, Admin | No body; early end |
-| POST | `/exams/:examId/cancel` | Professor, Admin | No body; no attempts |
-| GET | `/exams/:examId/questions` | Professor, Admin | Questions with options and correct flags |
-| POST | `/exams/:examId/questions` | Professor, Admin | `{promptFa,points,authorOrder}` |
-| PATCH | `/exams/:examId/questions/:questionId` | Professor, Admin | Subset `{promptFa?,points?,authorOrder?}` |
-| DELETE | `/exams/:examId/questions/:questionId` | Professor, Admin | Draft-only |
-| PUT | `/exams/:examId/questions/order` | Professor, Admin | `{questionIds:[...]}` complete ordered permutation; positions become 1..N |
-| POST | `/exams/:examId/questions/:questionId/options` | Professor, Admin | `{textFa,position,isCorrect?}` for MCQ |
-| PATCH | `/exams/:examId/questions/:questionId/options/:optionId` | Professor, Admin | Subset `{textFa?,position?,isCorrect?}` |
-| DELETE | `/exams/:examId/questions/:questionId/options/:optionId` | Professor, Admin | Draft-only |
-| PUT | `/exams/:examId/questions/:questionId/options/:optionId/correct` | Professor, Admin | No body; atomically replaces the correct key |
+| Method | URL                                                              | Role                      | Request body                                                                                                                                                     |
+| ------ | ---------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/exams`                                                         | Professor, Admin          | `{courseId,assignmentId?,titleFa,instructionsFa?,type,startsAt,endsAt,durationMinutes?,maxPoints}`; admin requires `assignmentId`; professor assignment inferred |
+| GET    | `/exams?courseId=&type=&status=&limit=&cursor=`                  | Student, Professor, Admin | List; student receives only authorized published exams                                                                                                           |
+| GET    | `/exams/:examId`                                                 | Student, Professor, Admin | Scoped metadata                                                                                                                                                  |
+| PATCH  | `/exams/:examId`                                                 | Professor, Admin          | Draft-only subset `{titleFa?,instructionsFa?,startsAt?,endsAt?,durationMinutes?,maxPoints?}`                                                                     |
+| DELETE | `/exams/:examId`                                                 | Professor, Admin          | Draft-only, no attempts/files                                                                                                                                    |
+| POST   | `/exams/:examId/publish`                                         | Professor, Admin          | No body                                                                                                                                                          |
+| POST   | `/exams/:examId/close`                                           | Professor, Admin          | No body; early end                                                                                                                                               |
+| POST   | `/exams/:examId/cancel`                                          | Professor, Admin          | No body; no attempts                                                                                                                                             |
+| GET    | `/exams/:examId/questions`                                       | Professor, Admin          | Questions with options and correct flags                                                                                                                         |
+| POST   | `/exams/:examId/questions`                                       | Professor, Admin          | `{promptFa,points,authorOrder}`                                                                                                                                  |
+| PATCH  | `/exams/:examId/questions/:questionId`                           | Professor, Admin          | Subset `{promptFa?,points?,authorOrder?}`                                                                                                                        |
+| DELETE | `/exams/:examId/questions/:questionId`                           | Professor, Admin          | Draft-only                                                                                                                                                       |
+| PUT    | `/exams/:examId/questions/order`                                 | Professor, Admin          | `{questionIds:[...]}` complete ordered permutation; positions become 1..N                                                                                        |
+| POST   | `/exams/:examId/questions/:questionId/options`                   | Professor, Admin          | `{textFa,position,isCorrect?}` for MCQ                                                                                                                           |
+| PATCH  | `/exams/:examId/questions/:questionId/options/:optionId`         | Professor, Admin          | Subset `{textFa?,position?,isCorrect?}`                                                                                                                          |
+| DELETE | `/exams/:examId/questions/:questionId/options/:optionId`         | Professor, Admin          | Draft-only                                                                                                                                                       |
+| PUT    | `/exams/:examId/questions/:questionId/options/:optionId/correct` | Professor, Admin          | No body; atomically replaces the correct key                                                                                                                     |
 
 Create returns 201, deletes 204, other successes 200 with `{data:...}`. Lists use `data.items` and optional `data.nextCursor`, `limit` 1–100. Bad body 422; unauthorized role 403; private or unrelated resources 404; uniqueness, state or locked content 409. Audit events are written in the same transaction as exam/question/option mutations. Editing order or choosing a correct answer uses exam row locking to serialize publication and draft edits.
 

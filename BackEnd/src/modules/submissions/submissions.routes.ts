@@ -1,12 +1,29 @@
-import { Router } from 'express';
-import { authenticate,requireRole } from '../../middleware/authenticate.js';
-import { asyncRoute } from '../../middleware/asyncRoute.js';
-import { submissionsController as c } from './submissions.controller.js';
-const r=Router();r.use(authenticate);
-r.post('/exams/:examId/attempts',requireRole('STUDENT'),asyncRoute(c.start!));
-r.get('/attempts',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.list!));
-r.get('/attempts/:attemptId',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.get!));
-r.put('/attempts/:attemptId/answers/:attemptQuestionId',requireRole('STUDENT'),asyncRoute(c.save!));
-r.post('/attempts/:attemptId/submit',requireRole('STUDENT'),asyncRoute(c.submit!));
-r.get('/attempts/:attemptId/grade',requireRole('STUDENT','PROFESSOR'),asyncRoute(c.grade!));
+import { Router } from "express";
+import { authenticate, requireRole } from "../../middleware/authenticate.js";
+import { asyncRoute } from "../../middleware/asyncRoute.js";
+import { submissionsController as c } from "./submissions.controller.js";
+const r = Router();
+r.use(authenticate);
+r.post("/exams/:examId/attempts", requireRole("STUDENT"), asyncRoute(c.start!));
+r.get("/attempts", requireRole("STUDENT", "PROFESSOR"), asyncRoute(c.list!));
+r.get(
+  "/attempts/:attemptId",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.get!),
+);
+r.put(
+  "/attempts/:attemptId/answers/:attemptQuestionId",
+  requireRole("STUDENT"),
+  asyncRoute(c.save!),
+);
+r.post(
+  "/attempts/:attemptId/submit",
+  requireRole("STUDENT"),
+  asyncRoute(c.submit!),
+);
+r.get(
+  "/attempts/:attemptId/grade",
+  requireRole("STUDENT", "PROFESSOR"),
+  asyncRoute(c.grade!),
+);
 export default r;

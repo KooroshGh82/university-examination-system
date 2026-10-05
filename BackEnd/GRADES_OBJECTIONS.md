@@ -10,30 +10,30 @@ This module extends the existing authentication, course, exam, MCQ and descripti
 
 ## Grade endpoints
 
-| Method | URL | Role | Result |
-| --- | --- | --- | --- |
-| GET | `/grades?courseId=&examId=&status=&limit=&cursor=` | Student, Professor | Student own published grades; professor assigned draft/published grades |
-| GET | `/courses/:courseId/grades?limit=&cursor=` | Student, Professor | Same scope, filtered by course |
-| GET | `/exams/:examId/grades?limit=&cursor=` | Student, Professor | Same scope, filtered by exam |
-| GET | `/grades/:gradeId` | Student, Professor | Scoped grade, score, comments, status |
-| GET | `/grades/:gradeId/revisions?limit=&cursor=` | Student, Professor | Append-only old/new scores, reason, professor and timestamp |
-| POST | `/grades/:gradeId/publish` | Assigned professor | Individual grade publication; repeated call returns the same published grade |
-| GET | `/attempts/:attemptId/grade` | Student, Professor | Existing route; student receives 404 before publication |
-| GET | `/grades/performance?courseId=` | Student | Own published grade totals, averages and chronological exam trends |
-| GET | `/courses/:courseId/grade-comparison` | Student | Own published exams in the course, normalized percentages and change from preceding exam |
+| Method | URL                                                | Role               | Result                                                                                   |
+| ------ | -------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------- |
+| GET    | `/grades?courseId=&examId=&status=&limit=&cursor=` | Student, Professor | Student own published grades; professor assigned draft/published grades                  |
+| GET    | `/courses/:courseId/grades?limit=&cursor=`         | Student, Professor | Same scope, filtered by course                                                           |
+| GET    | `/exams/:examId/grades?limit=&cursor=`             | Student, Professor | Same scope, filtered by exam                                                             |
+| GET    | `/grades/:gradeId`                                 | Student, Professor | Scoped grade, score, comments, status                                                    |
+| GET    | `/grades/:gradeId/revisions?limit=&cursor=`        | Student, Professor | Append-only old/new scores, reason, professor and timestamp                              |
+| POST   | `/grades/:gradeId/publish`                         | Assigned professor | Individual grade publication; repeated call returns the same published grade             |
+| GET    | `/attempts/:attemptId/grade`                       | Student, Professor | Existing route; student receives 404 before publication                                  |
+| GET    | `/grades/performance?courseId=`                    | Student            | Own published grade totals, averages and chronological exam trends                       |
+| GET    | `/courses/:courseId/grade-comparison`              | Student            | Own published exams in the course, normalized percentages and change from preceding exam |
 
 List responses use `{data:{items:[...],nextCursor?}}`, `limit` 1–100 (default 20). A student probing another user's grade or objection gets 404. Score and max points are decimal strings. There is no GPA or course-credit weighting in the approved schema. Performance uses only published grades: `totalScore = sum(score)`, `totalMaxPoints = sum(exam.maxPoints)`, `averagePercentage = arithmetic mean(score/maxPoints×100)` and `weightedPercentage = totalScore/totalMaxPoints×100`. Empty grade sets return zero count, totals `"0"`, and null percentages. Trend order is exam `startsAt`, then exam ID; `deltaFromPreviousPercentagePoints` is null for the first exam and a signed decimal string thereafter. A changed grade is reflected in the latest summary while revision history preserves earlier scores.
 
 ## Objection endpoints
 
-| Method | URL | Role | Request / result |
-| --- | --- | --- | --- |
-| POST | `/grades/:gradeId/objections` | Student | `{reasonFa}`; creates next round, 201 |
-| GET | `/grades/:gradeId/objections?limit=&cursor=` | Student, Professor | Own grade or active assigned exam history |
-| GET | `/objections?gradeId=&examId=&status=&limit=&cursor=` | Student, Professor | Own objections or active assigned objections |
-| GET | `/objections/:objectionId` | Student, Professor | Status and professor response/decision when available |
-| POST | `/objections/:objectionId/review` | Assigned professor | Moves `SUBMITTED` to `UNDER_REVIEW`; repeat review is idempotent |
-| POST | `/objections/:objectionId/decision` | Assigned professor | `{responseFa}` confirms, or `{responseFa,newScore}` changes and closes |
+| Method | URL                                                   | Role               | Request / result                                                       |
+| ------ | ----------------------------------------------------- | ------------------ | ---------------------------------------------------------------------- |
+| POST   | `/grades/:gradeId/objections`                         | Student            | `{reasonFa}`; creates next round, 201                                  |
+| GET    | `/grades/:gradeId/objections?limit=&cursor=`          | Student, Professor | Own grade or active assigned exam history                              |
+| GET    | `/objections?gradeId=&examId=&status=&limit=&cursor=` | Student, Professor | Own objections or active assigned objections                           |
+| GET    | `/objections/:objectionId`                            | Student, Professor | Status and professor response/decision when available                  |
+| POST   | `/objections/:objectionId/review`                     | Assigned professor | Moves `SUBMITTED` to `UNDER_REVIEW`; repeat review is idempotent       |
+| POST   | `/objections/:objectionId/decision`                   | Assigned professor | `{responseFa}` confirms, or `{responseFa,newScore}` changes and closes |
 
 The first objection requires PostgreSQL `clock_timestamp() < Grade.publishedAt + 168 hours`. Rounds 2 and 3 require a resolved preceding round and `now < previous ObjectionDecision.decidedAt + 168 hours`. The exact boundary is excluded. At most three sequential rounds are allowed; one unresolved objection blocks the next. Grade row locking serializes round allocation and decisions. `newScore` is a decimal string with at most two places, must be different from current score, and must lie in `[0, Exam.maxPoints]`. To keep the grade, omit `newScore`. The professor's response is visible to the student after decision. A second decision is rejected with 409.
 
