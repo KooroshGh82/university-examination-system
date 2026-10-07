@@ -44,13 +44,13 @@ export function PanelHeader({
       )}
       <Link
         href={role.home}
-        aria-label="صفحه اصلی سامانه آزمون دانشگاه"
+        aria-label="صفحه اصلی سامانه آزمون دانشگاه آزاد اسلامی - واحد تهران جنوب"
         title="صفحه اصلی"
         className="flex shrink-0 items-center gap-3 rounded-xl"
       >
         <AppLogo />
         <span className="hidden xl:block">
-          <strong className="block text-sm">سامانه آزمون دانشگاه</strong>
+          <strong className="block text-sm">سامانه آزمون</strong><span className="block text-xs text-[var(--muted)]">دانشگاه آزاد اسلامی - واحد تهران جنوب</span>
           <small className="text-[var(--muted)]">پنل {role.label}</small>
         </span>
       </Link>
