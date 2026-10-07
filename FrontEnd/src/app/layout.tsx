@@ -4,8 +4,8 @@ import { AppFooter } from "@/components/app-footer";
 import "./globals.css";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
-  title: "سامانه آزمون دانشگاه",
-  description: "پنل دانشجویی آزمون‌های دانشگاه",
+  title: "سامانه آزمون | دانشگاه آزاد اسلامی - واحد تهران جنوب",
+  description: "سامانه آزمون دانشجویان و استادان دانشگاه آزاد اسلامی - واحد تهران جنوب",
 };
 export default function RootLayout({
   children,

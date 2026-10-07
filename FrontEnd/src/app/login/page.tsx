@@ -44,7 +44,9 @@ export default function Login() {
             برنامه آزمون‌ها، پاسخ‌نامه‌ها و نتایج را از یکجا دنبال کنید.
           </p>
         </div>
-        <small className="text-[#a8c1d0]">سامانه یکپارچه آزمون دانشگاه</small>
+        <small className="text-[#a8c1d0]">
+          دانشگاه آزاد اسلامی - واحد تهران جنوب
+        </small>
       </section>
       <section className="grid place-items-center bg-[var(--surface)] p-6">
         <div className="absolute left-5 top-5">
@@ -54,7 +56,10 @@ export default function Login() {
           <div className="md:hidden">
             <AppLogo className="h-14 w-14" />
           </div>
-          <p className="font-bold text-[var(--accent)]">ورود به سامانه</p>
+          <p className="text-sm font-bold leading-7 text-[var(--accent)]">
+            دانشگاه آزاد اسلامی - واحد تهران جنوب
+          </p>
+          <p className="font-bold text-[var(--accent)]">ورود به سامانه آزمون</p>
           <h2 className="text-3xl font-black">خوش آمدید</h2>
           <p className="muted">
             با حسابی که دانشگاه برای شما ایجاد کرده است وارد شوید.

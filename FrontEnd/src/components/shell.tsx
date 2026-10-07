@@ -70,12 +70,12 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
           <Link
             href="/student/dashboard"
             onClick={() => setOpen(false)}
-            aria-label="صفحه اصلی سامانه آزمون دانشگاه"
+            aria-label="صفحه اصلی سامانه آزمون دانشگاه آزاد اسلامی - واحد تهران جنوب"
             className="flex items-center gap-3 rounded-xl"
           >
             <AppLogo />
             <div>
-              <strong className="block">سامانه آزمون دانشگاه</strong>
+              <strong className="block text-sm">سامانه آزمون</strong><span className="mt-1 block text-xs leading-5 text-[#b9d0df]">دانشگاه آزاد اسلامی - واحد تهران جنوب</span>
               <small className="text-[#b9d0df]">پنل دانشجو</small>
             </div>
           </Link>
@@ -101,7 +101,7 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <p className="absolute bottom-5 right-6 text-xs text-[#93afc1]">
-          دانشگاه • سامانه یکپارچه آزمون
+          تهران جنوب • سامانه یکپارچه آزمون
         </p>
       </aside>
       <div className="min-w-0 flex-1">
